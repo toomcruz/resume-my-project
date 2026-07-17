@@ -70,18 +70,8 @@ const CATALOG_INDEX: Map<string, FieldDefinition> = (() => {
  * Os `keys` incluem todas as variações que já apareceram em placeholders.
  */
 const MANUAL_GROUPS: Omit<PresentationGroup, "primaryKey">[] = [
-  {
-    id: "grp_data_emissao",
-    label: "Data de emissão",
-    section: "dados_administrativos",
-    keys: ["dataAtual", "data_atual", "data_emissao", "dataEmissao"],
-  },
-  {
-    id: "grp_data_extenso",
-    label: "Data por extenso",
-    section: "dados_administrativos",
-    keys: ["dataExt", "data_ext", "data_extenso", "dataExtenso"],
-  },
+  // Data atual e data por extenso são preenchidas automaticamente pelo sistema
+  // (São Paulo, dia X de mês de ano) — não aparecem na revisão.
   {
     id: "grp_data_sepultamento",
     label: "Data do sepultamento",
