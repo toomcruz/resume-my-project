@@ -543,12 +543,23 @@ function GroupRow({
       ) : (
         <div className="space-y-1.5">
           <Input
+            ref={inputRef}
             value={value}
             placeholder={placeholder}
             onFocus={() => setEditing(true)}
             onChange={(event) => {
               setEditing(true);
               onChange(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                if (!isReviewBlankValue(value)) {
+                  onConfirm();
+                }
+                setEditing(false);
+                onAdvance?.();
+              }
             }}
             onBlur={() => setEditing(false)}
             className={inputBorder}
