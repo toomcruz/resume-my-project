@@ -582,6 +582,7 @@ function GroupRow({
                   onClick={() => {
                     onConfirm();
                     setManual(false);
+                    onAdvance?.();
                   }}
                 >
                   <Check className="h-3 w-3" /> Confirmar valor
