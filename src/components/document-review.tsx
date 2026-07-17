@@ -2,7 +2,7 @@
  * Revisão visual dos dados extraídos, organizada por conceitos amigáveis.
  * Aliases técnicos são agrupados e campos opcionais vazios ficam ocultos.
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Loader2, Pencil } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -99,6 +99,8 @@ export function DocumentReview({
   const containerRef = useRef<HTMLDivElement>(null);
   const [pendingOpen, setPendingOpen] = useState(false);
   const [showAllPending, setShowAllPending] = useState(false);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [manualActive, setManualActive] = useState(false);
 
   const { sections } = useMemo(() => groupFields({ keys, fields }), [keys, fields]);
 
@@ -167,6 +169,8 @@ export function DocumentReview({
     const el = containerRef.current?.querySelector<HTMLElement>(`#${groupAnchorId(group)}`);
     if (!el) return;
     setPendingOpen(false);
+    setManualActive(true);
+    setActiveGroupId(group.id);
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.classList.add("ring-2", "ring-primary/60");
     window.setTimeout(() => el.classList.remove("ring-2", "ring-primary/60"), 1600);
@@ -176,6 +180,31 @@ export function DocumentReview({
     const next = { ...fields };
     for (const key of group.keys) next[key] = value;
     onFieldsChange(next);
+  }
+
+  // Auto-select first pending group as active, and reset when user manually navigated
+  useEffect(() => {
+    if (pendingGroups.length === 0) {
+      setActiveGroupId(null);
+      setManualActive(false);
+      return;
+    }
+    if (manualActive && activeGroupId && pendingGroups.some((g) => g.id === activeGroupId)) {
+      return;
+    }
+    setManualActive(false);
+    setActiveGroupId(pendingGroups[0].id);
+  }, [pendingGroups, activeGroupId, manualActive]);
+
+  function advanceFrom(currentId: string) {
+    setManualActive(false);
+    const remaining = pendingGroups.filter((g) => g.id !== currentId);
+    const next = remaining[0];
+    if (next) {
+      setActiveGroupId(next.id);
+    } else {
+      setActiveGroupId(null);
+    }
   }
 
   const displayedPending = showAllPending ? pendingGroups : pendingGroups.slice(0, 5);
@@ -294,8 +323,10 @@ export function DocumentReview({
                     value={value}
                     conflict={conflict}
                     meta={info}
+                    isActive={activeGroupId === group.id}
                     onChange={(nextValue) => updateGroup(group, nextValue)}
                     onConfirm={() => onConfirmField?.(valueKey)}
+                    onAdvance={() => advanceFrom(group.id)}
                   />
                 );
               })}
@@ -372,8 +403,10 @@ interface GroupRowProps {
   value: string;
   conflict: FieldConflict | undefined;
   meta: FlatFieldMeta | undefined;
+  isActive?: boolean;
   onChange: (value: string) => void;
   onConfirm: () => void;
+  onAdvance?: () => void;
 }
 
 function GroupRow({
@@ -384,13 +417,31 @@ function GroupRow({
   value,
   conflict,
   meta,
+  isActive = false,
   onChange,
   onConfirm,
+  onAdvance,
 }: GroupRowProps) {
   const [showAlt, setShowAlt] = useState(false);
   const [manual, setManual] = useState(false);
   const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const blank = isReviewBlankValue(value);
+
+  // When this group becomes the active focus, scroll it into center and focus the input.
+  useEffect(() => {
+    if (!isActive) return;
+    const el = rootRef.current;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [isActive]);
 
   if (status === "normal" && !blank && !editing) {
 
@@ -429,7 +480,14 @@ function GroupRow({
   const placeholder = status === "nao_encontrado" ? "Informação pendente" : "Não informado";
 
   return (
-    <div id={anchorId} className="scroll-mt-24 rounded-lg border px-3 py-2 transition-shadow">
+    <div
+      id={anchorId}
+      ref={rootRef}
+      className={cn(
+        "scroll-mt-24 rounded-lg border px-3 py-2 transition-all",
+        isActive && "border-primary/60 bg-primary/[0.03] shadow-[0_0_0_2px_hsl(var(--primary)/0.18)]",
+      )}
+    >
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-sm font-medium">
@@ -437,6 +495,11 @@ function GroupRow({
             {isCritical && status !== "normal" && (
               <span className="text-[10px] font-semibold uppercase tracking-wide text-destructive">
                 obrigatório
+              </span>
+            )}
+            {isActive && (
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                em foco · Enter para avançar
               </span>
             )}
           </div>
@@ -464,6 +527,7 @@ function GroupRow({
                 onClick={() => {
                   onChange(String(candidate?.value ?? ""));
                   onConfirm();
+                  onAdvance?.();
                 }}
               >
                 <span className="shrink-0 text-xs text-muted-foreground">
@@ -480,12 +544,23 @@ function GroupRow({
       ) : (
         <div className="space-y-1.5">
           <Input
+            ref={inputRef}
             value={value}
             placeholder={placeholder}
             onFocus={() => setEditing(true)}
             onChange={(event) => {
               setEditing(true);
               onChange(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                if (!isReviewBlankValue(value)) {
+                  onConfirm();
+                }
+                setEditing(false);
+                onAdvance?.();
+              }
             }}
             onBlur={() => setEditing(false)}
             className={inputBorder}
@@ -507,6 +582,7 @@ function GroupRow({
                   onClick={() => {
                     onConfirm();
                     setManual(false);
+                    onAdvance?.();
                   }}
                 >
                   <Check className="h-3 w-3" /> Confirmar valor
