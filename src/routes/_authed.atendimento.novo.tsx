@@ -110,7 +110,7 @@ function NewAttendance() {
     const scheduleKeys =
       proc.key === "sepultamento"
         ? ["inicio_velorio", "fim_velorio", "sala_velorio", "local_sepultamento", "funeraria"]
-        : ["hora_agendamento", "localizacao", "referencia_pps", "referencia_pss"];
+        : ["hora_agendamento", "referencia_pps", "referencia_pss"];
     return scheduleKeys.some((key) => extras[key]?.trim()) && !extras.data_agendada?.trim();
   }
 
