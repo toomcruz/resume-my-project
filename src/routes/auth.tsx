@@ -41,7 +41,7 @@ function AuthPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/dashboard` },
+      options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/` },
     });
     setSubmitting(false);
     if (error) return toast.error(error.message);
