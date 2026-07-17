@@ -42,9 +42,11 @@ describe("official template visual fidelity", () => {
     for (const id of ids) {
       const item = catalog.find((candidate) => candidate.id === id);
       expect(item, `${id} must exist in the official catalog`).toBeDefined();
-      const variants = getOfficialInstallVariants(item!);
+      if (!item) throw new Error(`Official catalog item not found: ${id}`);
+
+      const variants = getOfficialInstallVariants(item);
       expect(new Set(variants.map((variant) => variant.file)), id).toEqual(
-        new Set([item!.arquivo]),
+        new Set([item.arquivo]),
       );
     }
   });
