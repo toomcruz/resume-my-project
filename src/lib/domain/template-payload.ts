@@ -172,6 +172,7 @@ export function buildTemplatePayload(
   const map = PLACEHOLDER_MAP[documentSlug];
   if (!map) return { payload: {}, missing: [] };
 
+  const autoDates = computeAutoDates();
   const payload: Record<string, string> = {};
   const missing: string[] = [];
 
@@ -191,7 +192,12 @@ export function buildTemplatePayload(
     ) {
       key = "nome_falecido_exumacao_pps";
     }
-    const value = canonicalData[key];
+    let value = canonicalData[key];
+    // Data atual e por extenso são sempre calculadas pelo sistema (São Paulo, hoje).
+    if (!value || value.length === 0) {
+      if (key === "data_atual") value = autoDates.dataAtual;
+      else if (key === "data_atual_extenso") value = autoDates.dataAtualExtenso;
+    }
     if (typeof value === "string" && value.length > 0) {
       payload[placeholder] = value;
     } else {
@@ -200,6 +206,32 @@ export function buildTemplatePayload(
   }
 
   return { payload, missing };
+}
+
+/** Retorna a data atual formatada (fuso São Paulo) e sua versão por extenso
+ *  já prefixada com "São Paulo, ...". Usado como fallback automático. */
+function computeAutoDates(): { dataAtual: string; dataAtualExtenso: string } {
+  const now = new Date();
+  const tz = "America/Sao_Paulo";
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: tz,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const day = get("day");
+  const month = get("month");
+  const year = get("year");
+  const dataAtual = `${day}/${month}/${year}`;
+
+  const monthName = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: tz,
+    month: "long",
+  }).format(now);
+  const dataAtualExtenso = `São Paulo, ${parseInt(day, 10)} de ${monthName} de ${year}`;
+
+  return { dataAtual, dataAtualExtenso };
 }
 
 /** Retorna quais chaves canônicas são consumidas pelo modelo. Útil para
