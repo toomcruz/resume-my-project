@@ -181,7 +181,9 @@ function NewAttendance() {
       if (attendanceError) throw attendanceError;
 
       for (const file of files) {
-        const extension = file.name.split(".").pop() ?? "jpg";
+        const dotIdx = file.name.lastIndexOf(".");
+        const rawExt = dotIdx > 0 ? file.name.slice(dotIdx + 1).toLowerCase() : "";
+        const extension = rawExt || (file.type.split("/")[1] ?? "bin");
         const path = `${userId}/${attendance.id}/${crypto.randomUUID()}.${extension}`;
         const { error: uploadError } = await supabase.storage
           .from("attendance-images")
