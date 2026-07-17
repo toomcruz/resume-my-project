@@ -389,14 +389,28 @@ function AttendanceDetail() {
     toast.success("Pacote gerado");
   }
 
-  async function download(bucket: string, path: string) {
+  async function download(bucket: string, path: string, filename?: string) {
     try {
-      const { url } = await signFn({ data: { bucket, path } });
-      window.open(url, "_blank");
+      // Nome amigável (com extensão .docx) para forçar Content-Disposition
+      // e evitar que o navegador abra o arquivo em visualizadores in-browser
+      // (Chrome/Google Docs preview) que renderizam a fonte pequena e distorcem
+      // o layout do modelo oficial.
+      const suggested = filename
+        ? `${filename.replace(/[^\w.-]+/g, "_")}.docx`
+        : (path.split("/").pop() ?? "documento.docx");
+      const { url } = await signFn({ data: { bucket, path, filename: suggested } });
+      const anchor = window.document.createElement("a");
+      anchor.href = url;
+      anchor.download = suggested;
+      anchor.rel = "noopener";
+      window.document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Falha ao baixar documento"));
     }
   }
+
 
   async function deleteAttendance() {
     if (!confirm("Excluir este atendimento e todos os documentos?")) return;
