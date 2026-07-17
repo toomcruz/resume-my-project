@@ -6,6 +6,7 @@ import {
   type OfficialTemplateCatalogItem,
 } from "../official-templates";
 
+// These hashes intentionally pin the approved originals and their visual layout.
 const OFFICIAL_TEMPLATE_HASHES: Record<string, string> = {
   "public/templates/official/sepultamento/ordem-sepultamento.docx":
     "bde11413c4827c1ab05b66669b24deeb41066788a52219e0951cb90f6c46710c",
