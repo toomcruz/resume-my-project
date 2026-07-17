@@ -169,6 +169,8 @@ export function DocumentReview({
     const el = containerRef.current?.querySelector<HTMLElement>(`#${groupAnchorId(group)}`);
     if (!el) return;
     setPendingOpen(false);
+    setManualActive(true);
+    setActiveGroupId(group.id);
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.classList.add("ring-2", "ring-primary/60");
     window.setTimeout(() => el.classList.remove("ring-2", "ring-primary/60"), 1600);
@@ -178,6 +180,31 @@ export function DocumentReview({
     const next = { ...fields };
     for (const key of group.keys) next[key] = value;
     onFieldsChange(next);
+  }
+
+  // Auto-select first pending group as active, and reset when user manually navigated
+  useEffect(() => {
+    if (pendingGroups.length === 0) {
+      setActiveGroupId(null);
+      setManualActive(false);
+      return;
+    }
+    if (manualActive && activeGroupId && pendingGroups.some((g) => g.id === activeGroupId)) {
+      return;
+    }
+    setManualActive(false);
+    setActiveGroupId(pendingGroups[0].id);
+  }, [pendingGroups, activeGroupId, manualActive]);
+
+  function advanceFrom(currentId: string) {
+    setManualActive(false);
+    const remaining = pendingGroups.filter((g) => g.id !== currentId);
+    const next = remaining[0];
+    if (next) {
+      setActiveGroupId(next.id);
+    } else {
+      setActiveGroupId(null);
+    }
   }
 
   const displayedPending = showAllPending ? pendingGroups : pendingGroups.slice(0, 5);
