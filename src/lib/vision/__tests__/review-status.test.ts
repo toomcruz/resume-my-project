@@ -185,4 +185,31 @@ describe("getCriticalFieldKeys", () => {
     expect(keys.has("data_sepultamento")).toBe(true);
     expect(keys.size).toBe(3);
   });
+
+  it("não trata campos de Localização / Jazigo como críticos", () => {
+    const keys = getCriticalFieldKeys([
+      {
+        placeholders: [
+          "nome_falecido",
+          "quadra",
+          "rua",
+          "quadraRua",
+          "terreno",
+          "gaveta",
+          "localJaz",
+          "placa",
+          "inscricaoGS",
+        ],
+      },
+    ]);
+    expect(keys.has("nome_falecido")).toBe(true);
+    expect(keys.has("quadra")).toBe(false);
+    expect(keys.has("rua")).toBe(false);
+    expect(keys.has("quadraRua")).toBe(false);
+    expect(keys.has("terreno")).toBe(false);
+    expect(keys.has("gaveta")).toBe(false);
+    expect(keys.has("localJaz")).toBe(false);
+    expect(keys.has("placa")).toBe(false);
+    expect(keys.has("inscricaoGS")).toBe(false);
+  });
 });
