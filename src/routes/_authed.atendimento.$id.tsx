@@ -618,7 +618,10 @@ function AttendanceDetail() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => download("generated-documents", document.storage_path)}
+                      onClick={() =>
+                        download("generated-documents", document.storage_path, document.name)
+                      }
+
                       className="gap-1"
                     >
                       <FileDown className="h-3 w-3" /> Baixar
