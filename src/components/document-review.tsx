@@ -2,7 +2,7 @@
  * Revisão visual dos dados extraídos, organizada por conceitos amigáveis.
  * Aliases técnicos são agrupados e campos opcionais vazios ficam ocultos.
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Loader2, Pencil } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
