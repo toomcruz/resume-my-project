@@ -99,6 +99,8 @@ export function DocumentReview({
   const containerRef = useRef<HTMLDivElement>(null);
   const [pendingOpen, setPendingOpen] = useState(false);
   const [showAllPending, setShowAllPending] = useState(false);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [manualActive, setManualActive] = useState(false);
 
   const { sections } = useMemo(() => groupFields({ keys, fields }), [keys, fields]);
 
