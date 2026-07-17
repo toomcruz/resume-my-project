@@ -30,17 +30,17 @@ function AuthedLayout() {
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
-        <SidebarInset className="bg-background">
-          <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur-md md:px-4">
-            <SidebarTrigger className="-ml-1" />
+        <SidebarInset className="bg-transparent">
+          <header className="glass sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/60 px-3 md:px-4">
+            <SidebarTrigger className="-ml-1 transition-transform hover:scale-105" />
             <Separator orientation="vertical" className="mx-1 h-5" />
             <div className="min-w-0 flex-1">
-              <div className="truncate font-display text-sm font-semibold text-foreground">
+              <div className="truncate font-display text-sm font-semibold tracking-tight text-foreground">
                 Apoio ao Atendimento
               </div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-6xl flex-1 px-3 py-5 md:px-6 md:py-8">
+          <main className="mx-auto w-full max-w-6xl flex-1 px-3 py-6 md:px-8 md:py-10 animate-fade-in-soft">
             <Outlet />
           </main>
         </SidebarInset>
