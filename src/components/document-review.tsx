@@ -323,8 +323,10 @@ export function DocumentReview({
                     value={value}
                     conflict={conflict}
                     meta={info}
+                    isActive={activeGroupId === group.id}
                     onChange={(nextValue) => updateGroup(group, nextValue)}
                     onConfirm={() => onConfirmField?.(valueKey)}
+                    onAdvance={() => advanceFrom(group.id)}
                   />
                 );
               })}
