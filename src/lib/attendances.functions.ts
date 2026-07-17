@@ -325,16 +325,26 @@ export const analyzeTemplate = createServerFn({ method: "POST" })
   });
 
 // -------- Signed URL for generated document download --------
-const SignedInput = z.object({ bucket: z.string(), path: z.string() });
+const SignedInput = z.object({
+  bucket: z.string(),
+  path: z.string(),
+  filename: z.string().optional(),
+});
 
 export const getSignedUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((value: unknown) => SignedInput.parse(value))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    // Force Content-Disposition: attachment so the browser downloads the
+    // .docx as a file instead of rendering it in an in-browser viewer
+    // (Chrome/Google Docs preview) that distorts fonts and layout.
     const { data: signed, error } = await supabase.storage
       .from(data.bucket)
-      .createSignedUrl(data.path, 300);
+      .createSignedUrl(data.path, 300, {
+        download: data.filename ?? true,
+      });
     if (error || !signed) throw new Error(error?.message || "Falha ao gerar URL");
     return { url: signed.signedUrl };
   });
+
