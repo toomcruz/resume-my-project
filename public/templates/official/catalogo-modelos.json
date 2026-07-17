@@ -8,13 +8,7 @@
     "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "origem": "oficial",
     "ativo": true,
-    "placeholders": [
-      "data",
-      "fim",
-      "inicio",
-      "nomeFal",
-      "sala"
-    ],
+    "placeholders": ["data", "fim", "inicio", "nomeFal", "sala"],
     "placeholderAliases": {
       "dataEvento": "data",
       "salaVelorio": "sala",
@@ -22,10 +16,7 @@
       "horarioInicioVelorio": "inicio",
       "horarioFimVelorio": "fim"
     },
-    "contextos": [
-      "somente_velorio",
-      "velorio_e_sepultamento"
-    ],
+    "contextos": ["somente_velorio", "velorio_e_sepultamento"],
     "tamanhoBytes": 90182,
     "sha256": "49e66557e5267852c9636fcc954891b2c358469028e338dba164d3ea5960f5aa",
     "paginas": 1
@@ -39,20 +30,13 @@
     "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "origem": "oficial",
     "ativo": true,
-    "placeholders": [
-      "data",
-      "nomeFal",
-      "sala"
-    ],
+    "placeholders": ["data", "nomeFal", "sala"],
     "placeholderAliases": {
       "nomeFalecido": "nomeFal",
       "dataEvento": "data",
       "salaVelorio": "sala"
     },
-    "contextos": [
-      "somente_velorio",
-      "velorio_e_sepultamento"
-    ],
+    "contextos": ["somente_velorio", "velorio_e_sepultamento"],
     "tamanhoBytes": 27979,
     "sha256": "65cc3a9475f32578da5cde447ea149706c6d9d667f94cab0823ba6359ffc7795",
     "paginas": 1
@@ -110,10 +94,7 @@
       "dataAtualExtenso": "dataExt",
       "dataAtual": "dataAtual"
     },
-    "contextos": [
-      "quadra_geral",
-      "jazigo"
-    ],
+    "contextos": ["quadra_geral", "jazigo"],
     "tamanhoBytes": 127866,
     "sha256": "bde11413c4827c1ab05b66669b24deeb41066788a52219e0951cb90f6c46710c",
     "paginas": 1
@@ -165,10 +146,7 @@
       "dataAtualExtenso": "dataExt",
       "dataAtual": "dataAtual"
     },
-    "contextos": [
-      "quadra_geral",
-      "jazigo"
-    ],
+    "contextos": ["quadra_geral", "jazigo"],
     "tamanhoBytes": 134008,
     "sha256": "37e6191a0397e6dd7a66d207180be1945fda1dbda3dd36ace0fb6aaea73d0fed",
     "paginas": 1
@@ -206,10 +184,7 @@
       "nomeFalecido2": "falecido2",
       "dataAtualExtenso": "dataExt"
     },
-    "contextos": [
-      "sepultamento_jazigo",
-      "exumacao_jazigo"
-    ],
+    "contextos": ["sepultamento_jazigo", "exumacao_jazigo"],
     "tamanhoBytes": 156299,
     "sha256": "8d68f38e3e9c4c175b172309edb225d3e55c881da27a0863766ca1469fa1013e",
     "paginas": 1
@@ -249,11 +224,7 @@
       "inscricaoGS": "inscrGS",
       "dataAtualExtenso": "dataExt"
     },
-    "contextos": [
-      "aluguel",
-      "aquisicao",
-      "renovacao"
-    ],
+    "contextos": ["aluguel", "aquisicao", "renovacao"],
     "tamanhoBytes": 160373,
     "sha256": "069a775cf6f80a72c6dacefd9e1b1eeb7a64be2e89dd95a55fcc70a5c032d256",
     "paginas": 1
@@ -293,9 +264,7 @@
       "dataProximaTentativa": "dataProx",
       "dataAtualExtenso": "dataExt"
     },
-    "contextos": [
-      "semi_intacto"
-    ],
+    "contextos": ["semi_intacto"],
     "tamanhoBytes": 58677,
     "sha256": "d24a1fcd459a7e27f708846d684e7bd573a57c7afa64f4a38a96aa34a4b9686b",
     "paginas": 1
@@ -309,14 +278,7 @@
     "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "origem": "oficial",
     "ativo": true,
-    "placeholders": [
-      "cpfResp",
-      "dataExt",
-      "destino",
-      "nomeFal",
-      "nomeResp",
-      "origem"
-    ],
+    "placeholders": ["cpfResp", "dataExt", "destino", "nomeFal", "nomeResp", "origem"],
     "placeholderAliases": {
       "nomeRequerente": "nomeResp",
       "cpfRequerente": "cpfResp",
@@ -325,10 +287,7 @@
       "destinoTranslado": "destino",
       "dataAtualExtenso": "dataExt"
     },
-    "contextos": [
-      "interno",
-      "externo"
-    ],
+    "contextos": ["interno", "externo"],
     "tamanhoBytes": 64943,
     "sha256": "c37b22245baa128ec05ee0c2cc0f56ca3317595e53f0aca25c4741ed312100fd",
     "paginas": 1
@@ -392,13 +351,7 @@
       "dataRecibo": "dataRec",
       "proximaRenovacao": "proxRen"
     },
-    "contextos": [
-      "responsavel",
-      "endereco",
-      "dados_concessao",
-      "dados_jazigo",
-      "outro"
-    ],
+    "contextos": ["responsavel", "endereco", "dados_concessao", "dados_jazigo", "outro"],
     "tamanhoBytes": 60852,
     "sha256": "35a4a5f9b67e43bc14ba3cc1a7cc7a3d2a440e990bc0dc8a4f176aba771979dd",
     "paginas": 1
