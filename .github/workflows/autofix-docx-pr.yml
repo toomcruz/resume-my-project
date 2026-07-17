@@ -1,0 +1,69 @@
+name: Autofix DOCX PR
+
+on:
+  push:
+    branches:
+      - fix/restore-original-docx-layouts
+
+permissions:
+  contents: write
+
+jobs:
+  autofix:
+    if: ${{ !contains(github.event.head_commit.message, '[docx-autofix]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/restore-original-docx-layouts
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Apply repository format and lint rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          mapfile -d '' changed_files < <(git diff --name-only --diff-filter=ACMRT -z origin/main...HEAD)
+
+          prettier_files=()
+          eslint_files=()
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              *.ts|*.tsx|*.js|*.jsx|*.json|*.yml|*.yaml|*.css|*.scss|*.md|*.html)
+                prettier_files+=("$file")
+                ;;
+            esac
+            case "$file" in
+              *.ts|*.tsx|*.js|*.jsx)
+                eslint_files+=("$file")
+                ;;
+            esac
+          done
+
+          if [ "${#prettier_files[@]}" -gt 0 ]; then
+            bunx prettier --write "${prettier_files[@]}"
+          fi
+          if [ "${#eslint_files[@]}" -gt 0 ]; then
+            bunx eslint --fix "${eslint_files[@]}"
+          fi
+
+      - name: Commit fixes
+        shell: bash
+        run: |
+          rm .github/workflows/autofix-docx-pr.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            git commit --allow-empty -m "chore: confirma estilo do PR DOCX [docx-autofix]"
+          else
+            git commit -m "style: aplica regras do repositório ao PR DOCX [docx-autofix]"
+          fi
+          git push origin HEAD:fix/restore-original-docx-layouts
