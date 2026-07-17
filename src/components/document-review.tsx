@@ -403,8 +403,10 @@ interface GroupRowProps {
   value: string;
   conflict: FieldConflict | undefined;
   meta: FlatFieldMeta | undefined;
+  isActive?: boolean;
   onChange: (value: string) => void;
   onConfirm: () => void;
+  onAdvance?: () => void;
 }
 
 function GroupRow({
@@ -415,13 +417,31 @@ function GroupRow({
   value,
   conflict,
   meta,
+  isActive = false,
   onChange,
   onConfirm,
+  onAdvance,
 }: GroupRowProps) {
   const [showAlt, setShowAlt] = useState(false);
   const [manual, setManual] = useState(false);
   const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const blank = isReviewBlankValue(value);
+
+  // When this group becomes the active focus, scroll it into center and focus the input.
+  useEffect(() => {
+    if (!isActive) return;
+    const el = rootRef.current;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [isActive]);
 
   if (status === "normal" && !blank && !editing) {
 
