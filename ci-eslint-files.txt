@@ -1,0 +1,4 @@
+src/lib/__tests__/official-template-fidelity.test.ts
+src/lib/__tests__/official-template-variants.test.ts
+src/lib/official-templates.ts
+src/routes/_authed.modelos.tsx
