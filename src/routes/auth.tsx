@@ -14,10 +14,20 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+const USERNAME_DOMAIN = "user.autofill.local";
+
+function normalizeUsername(raw: string) {
+  return raw.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+}
+
+function usernameToEmail(username: string) {
+  return `${normalizeUsername(username)}@${USERNAME_DOMAIN}`;
+}
+
 function AuthPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuthSession();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -28,20 +38,30 @@ function AuthPage() {
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
+    const clean = normalizeUsername(username);
+    if (!clean) return toast.error("Informe um nome de usuário válido.");
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: usernameToEmail(clean),
+      password,
+    });
     setSubmitting(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error("Usuário ou senha inválidos.");
     toast.success("Bem-vindo!");
   }
 
   async function signUp(e: React.FormEvent) {
     e.preventDefault();
+    const clean = normalizeUsername(username);
+    if (!clean) return toast.error("Nome de usuário só pode ter letras, números, ponto, hífen e underline.");
     setSubmitting(true);
     const { error } = await supabase.auth.signUp({
-      email,
+      email: usernameToEmail(clean),
       password,
-      options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/` },
+      options: {
+        data: { full_name: fullName || clean, username: clean },
+        emailRedirectTo: `${window.location.origin}/`,
+      },
     });
     setSubmitting(false);
     if (error) return toast.error(error.message);
@@ -68,7 +88,7 @@ function AuthPage() {
         <Card>
           <CardHeader className="pb-4">
             <CardTitle>Acessar sistema</CardTitle>
-            <CardDescription>Entre com sua conta ou crie uma nova.</CardDescription>
+            <CardDescription>Entre com seu nome de usuário ou crie uma conta.</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin">
@@ -79,12 +99,25 @@ function AuthPage() {
               <TabsContent value="signin">
                 <form onSubmit={signIn} className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email-in">E-mail</Label>
-                    <Input id="email-in" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Label htmlFor="user-in">Nome de usuário</Label>
+                    <Input
+                      id="user-in"
+                      autoComplete="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password-in">Senha</Label>
-                    <Input id="password-in" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <Input
+                      id="password-in"
+                      type="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
                   </div>
                   <Button type="submit" className="w-full" disabled={submitting}>
                     {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Entrar
@@ -94,16 +127,33 @@ function AuthPage() {
               <TabsContent value="signup">
                 <form onSubmit={signUp} className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name-up">Nome completo</Label>
+                    <Label htmlFor="name-up">Nome completo (opcional)</Label>
                     <Input id="name-up" value={fullName} onChange={(e) => setFullName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email-up">E-mail</Label>
-                    <Input id="email-up" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Label htmlFor="user-up">Nome de usuário</Label>
+                    <Input
+                      id="user-up"
+                      autoComplete="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Apenas letras, números, ponto, hífen e underline.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password-up">Senha</Label>
-                    <Input id="password-up" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+                    <Input
+                      id="password-up"
+                      type="password"
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
                   </div>
                   <Button type="submit" className="w-full" disabled={submitting}>
                     {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Criar conta
