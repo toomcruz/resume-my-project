@@ -527,6 +527,7 @@ function GroupRow({
                 onClick={() => {
                   onChange(String(candidate?.value ?? ""));
                   onConfirm();
+                  onAdvance?.();
                 }}
               >
                 <span className="shrink-0 text-xs text-muted-foreground">
