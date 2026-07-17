@@ -480,7 +480,14 @@ function GroupRow({
   const placeholder = status === "nao_encontrado" ? "Informação pendente" : "Não informado";
 
   return (
-    <div id={anchorId} className="scroll-mt-24 rounded-lg border px-3 py-2 transition-shadow">
+    <div
+      id={anchorId}
+      ref={rootRef}
+      className={cn(
+        "scroll-mt-24 rounded-lg border px-3 py-2 transition-all",
+        isActive && "border-primary/60 bg-primary/[0.03] shadow-[0_0_0_2px_hsl(var(--primary)/0.18)]",
+      )}
+    >
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-sm font-medium">
@@ -488,6 +495,11 @@ function GroupRow({
             {isCritical && status !== "normal" && (
               <span className="text-[10px] font-semibold uppercase tracking-wide text-destructive">
                 obrigatório
+              </span>
+            )}
+            {isActive && (
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                em foco · Enter para avançar
               </span>
             )}
           </div>
