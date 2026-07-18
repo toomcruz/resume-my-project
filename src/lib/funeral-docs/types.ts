@@ -273,7 +273,9 @@ export interface ProcessoFunerario {
   dadosSepultamento?: DadosSepultamento;
   dadosVelorio?: DadosVelorio;
   dadosContratacao?: DadosContratacao;
+  cadastroGscemi?: CadastroGscemi;
   documentos: DocumentoFonte[];
   divergencias: Divergencia[];
   camposPendentes: CampoPendente[];
 }
+
