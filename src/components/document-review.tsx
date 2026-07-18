@@ -182,18 +182,20 @@ export function DocumentReview({
     onFieldsChange(next);
   }
 
-  // Auto-select first pending group as active, and reset when user manually navigated
+  // Select the first pending group only when nothing is active. Do NOT move
+  // the active group just because it left `pendingGroups` — that caused the
+  // input to auto-advance while the user was still typing. The active group
+  // only changes on explicit user action (Enter → advanceFrom, or clicking
+  // another pending item).
   useEffect(() => {
     if (pendingGroups.length === 0) {
-      setActiveGroupId(null);
-      setManualActive(false);
+      if (activeGroupId !== null) setActiveGroupId(null);
+      if (manualActive) setManualActive(false);
       return;
     }
-    if (manualActive && activeGroupId && pendingGroups.some((g) => g.id === activeGroupId)) {
-      return;
+    if (activeGroupId === null) {
+      setActiveGroupId(pendingGroups[0].id);
     }
-    setManualActive(false);
-    setActiveGroupId(pendingGroups[0].id);
   }, [pendingGroups, activeGroupId, manualActive]);
 
   function advanceFrom(currentId: string) {
