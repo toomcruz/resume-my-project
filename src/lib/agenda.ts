@@ -32,6 +32,12 @@ export interface AgendaEvent {
   pss_reference: string | null;
   status: AgendaStatus;
   notes: string | null;
+  quadra_rua: string | null;
+  terreno: string | null;
+  gaveta: string | null;
+  arrival_time: string | null;
+  driver_name: string | null;
+  vehicle_plate: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +63,12 @@ export interface AgendaEventDraft {
   pss_reference: string;
   status: AgendaStatus;
   notes: string;
+  quadra_rua: string;
+  terreno: string;
+  gaveta: string;
+  arrival_time: string;
+  driver_name: string;
+  vehicle_plate: string;
 }
 
 export const AGENDA_TYPES: Array<{
