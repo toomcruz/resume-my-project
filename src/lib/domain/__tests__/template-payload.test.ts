@@ -88,7 +88,7 @@ describe("buildTemplatePayload", () => {
       expect(missing).not.toContain("dataExt");
     });
 
-    it("respects explicitly provided data_atual over the automatic value", () => {
+    it("always overrides data_atual with the automatic value, ignoring extracted input", () => {
       const { payload } = buildTemplatePayload({
         documentSlug: "ordem-sepultamento",
         canonicalData: {
@@ -96,8 +96,8 @@ describe("buildTemplatePayload", () => {
           data_atual_extenso: "custom",
         },
       });
-      expect(payload.dataAtual).toBe("31/12/1999");
-      expect(payload.dataExt).toBe("custom");
+      expect(payload.dataAtual).toBe("15/07/2026");
+      expect(payload.dataExt).toMatch(/^São Paulo, 15 de julho de 2026$/);
     });
   });
 
