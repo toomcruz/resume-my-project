@@ -14,6 +14,31 @@ function firstExtractedValue(extracted: Record<string, string>, keys: string[]):
   return null;
 }
 
+/** Data atual (fuso São Paulo) e "São Paulo, DD de mês de AAAA" — sempre
+ *  calculadas pelo sistema, ignorando qualquer valor extraído por OCR. */
+function computeSaoPauloDates(): { dataAtual: string; dataAtualExtenso: string } {
+  const now = new Date();
+  const tz = "America/Sao_Paulo";
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: tz,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const day = get("day");
+  const month = get("month");
+  const year = get("year");
+  const monthName = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: tz,
+    month: "long",
+  }).format(now);
+  return {
+    dataAtual: `${day}/${month}/${year}`,
+    dataAtualExtenso: `São Paulo, ${parseInt(day, 10)} de ${monthName} de ${year}`,
+  };
+}
+
 export async function syncLinkedAgenda(
   supabaseClient: SupabaseClient<Database>,
   attendanceId: string,
