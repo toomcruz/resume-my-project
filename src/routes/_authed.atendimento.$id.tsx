@@ -669,7 +669,7 @@ function AttendanceDetail() {
                   summary={reviewSummary}
                   conflicts={visionConflicts}
                   criticalKeys={criticalKeys}
-                  onFieldsChange={setFields}
+                  onFieldsChange={handleFieldsChange}
                   onConfirmField={(key) =>
                     setConfirmedOverrides((prev) => {
                       const next = new Set(prev);
