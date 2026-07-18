@@ -1,0 +1,9 @@
+public/templates/official/catalogo-modelos.json
+src/components/document-review.tsx
+src/lib/__tests__/official-template-fidelity.test.ts
+src/lib/__tests__/official-template-variants.test.ts
+src/lib/domain/template-payload.ts
+src/lib/official-templates.ts
+src/lib/vision/extract-image.server.ts
+src/lib/vision/field-presentation.ts
+src/routes/_authed.modelos.tsx
