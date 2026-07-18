@@ -273,6 +273,123 @@ export interface CampoPendente {
   confianca?: number;
 }
 
+export interface EnderecoGscemi {
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+  codigoIbge?: string;
+}
+
+/** Cada opção do painel "Tipo de Sepultamento" é armazenada individualmente. */
+export interface TipoProcedimentoSepultamento {
+  sepultamento?: boolean;
+  cremacao?: boolean;
+  cremacaoESepultamento?: boolean;
+  tanatopraxia?: boolean;
+  exumacao?: boolean;
+  transladoInterno?: boolean;
+  transladoExterno?: boolean;
+}
+
+export interface RegistroLivro {
+  cartorio?: string;
+  distrito?: string;
+  livro?: string;
+  pagina?: string;
+  notaFiscal?: string;
+}
+
+export interface DadosPlacaIdentificacao {
+  /** Nome bruto do campo original ("Termo/Nº Controle Sepult."). */
+  termoNumeroControle?: string;
+  /** Mesmo valor de `termoNumeroControle`, exposto com o nome semântico "placa". */
+  numeroPlacaIdentificacao?: string;
+  temLapide?: string;
+  tipoLapide?: string;
+  quantidadeGravacoes?: string;
+  lapideFixada?: string;
+  dataFixacao?: string;
+  situacaoSepultado?: string;
+  dataSituacaoSepultado?: string;
+  personalidade?: string;
+  foto?: string;
+}
+
+/** Consolidação da tela "Cadastro do Falecido / Sepultamento" do GSCEMI. */
+export interface CadastroSepultamentoGscemi {
+  numeroRegistro?: string;
+  numeroSepultado?: string;
+  inscricaoGscemi?: string;
+  numeroOrdemServico?: string;
+  numeroContrato?: string;
+  numeroDeclaracaoObito?: string;
+  proAim?: string;
+  temPlanoFunerario?: string;
+  naturezaObito?: string;
+  /**
+   * Campo "Parentesco" desta tela. Origem exata preservada.
+   * NÃO deve ser copiado para parentesco do declarante, do dependente
+   * ou da Ordem de Sepultamento sem confirmação documental.
+   */
+  parentescoCadastroSepultamento?: string;
+  tipoAtendimento?: string;
+  tipoProcedimento: TipoProcedimentoSepultamento;
+  nomeFalecido?: string;
+  sexo?: string;
+  dataNascimento?: string;
+  dataFalecimento?: string;
+  dataSepultamento?: string;
+  dataExumacao?: string;
+  transladoInterno?: string;
+  transladoExterno?: string;
+  cor?: string;
+  estadoCivil?: string;
+  religiao?: string;
+  profissao?: string;
+  endereco?: EnderecoGscemi;
+  capela?: string;
+  nomeConcessionarioVinculado?: string;
+  codigoCemiterio?: string;
+  nomeCemiterio?: string;
+  quadra?: string;
+  letra?: string;
+  lote?: string;
+  numeroJazigo?: string;
+  tipoConcessao?: string;
+  registroLivro?: RegistroLivro;
+  placaIdentificacao?: DadosPlacaIdentificacao;
+  contratacaoAtendimento?: {
+    concessionaria?: string;
+    seguradoraParceiro?: string;
+    descricao?: string;
+    tipoAtendimento?: string;
+  };
+  alertas: AlertaGscemi[];
+  origemDocIds: string[];
+}
+
+/** Uma pessoa extraída das telas GSCEMI de declarantes (óbito ou pagamento). */
+export interface DeclaranteGscemi {
+  papel: "DECLARANTE_DO_OBITO_GSCEMI" | "DECLARANTE_DO_PAGAMENTO";
+  inscricao?: string;
+  nome?: string;
+  nomeNormalizado?: string;
+  tipoPessoa?: "FISICA" | "JURIDICA";
+  cpf?: string;
+  cnpj?: string;
+  endereco?: EnderecoGscemi;
+  telefone?: string;
+  celular?: string;
+  email?: string;
+  /** Só se aplica ao DECLARANTE_DO_PAGAMENTO. */
+  origemDadosDeclarantePagamento?: OrigemDadosDeclarantePagamento;
+  origemDocIds: string[];
+}
+
 export interface ProcessoFunerario {
   id?: string;
   tipoProcesso: TipoProcesso;
@@ -284,6 +401,9 @@ export interface ProcessoFunerario {
   dadosVelorio?: DadosVelorio;
   dadosContratacao?: DadosContratacao;
   cadastroGscemi?: CadastroGscemi;
+  cadastroSepultamentoGscemi?: CadastroSepultamentoGscemi;
+  declaranteObitoGscemi?: DeclaranteGscemi;
+  declarantePagamento?: DeclaranteGscemi;
   documentos: DocumentoFonte[];
   divergencias: Divergencia[];
   camposPendentes: CampoPendente[];
