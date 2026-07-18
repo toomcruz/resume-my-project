@@ -1,5 +1,0 @@
-Checking formatting...
-[[31merror[39m] No files matching the pattern were found: "src/lib/__tests__/error-message.test.ts".
-[[31merror[39m] No files matching the pattern were found: "src/lib/__tests__/utils.test.ts".
-[[31merror[39m] No files matching the pattern were found: "src/lib/domain/__tests__/template-payload.test.ts".
-All matched files use Prettier code style!
