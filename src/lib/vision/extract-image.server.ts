@@ -10,7 +10,11 @@ import {
 } from "@/lib/vision/schema";
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-3-flash-preview";
+// Modelo Pro para OCR de fotos/prints (melhor leitura de manuscritos,
+// documentos rotacionados, baixa iluminação e telas de sistema).
+const MODEL_PRIMARY = "google/gemini-3-pro-preview";
+// Fallback rápido quando o Pro estiver indisponível ou lento.
+const MODEL_FALLBACK = "google/gemini-3-flash-preview";
 
 export type ExtractImageInput = {
   imageId: string;
