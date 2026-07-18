@@ -3,7 +3,111 @@
 export type TipoDocumento =
   | "DECLARACAO_DE_OBITO"
   | "NOTA_DE_CONTRATACAO_FUNERAL"
+  | "CADASTRO_CONCESSIONARIO_GSCEMI"
   | "DOCUMENTO_DESCONHECIDO";
+
+export type PapelPessoa =
+  | "FALECIDO_SEPULTADO"
+  | "FALECIDO_EXUMADO"
+  | "DECLARANTE"
+  | "RESPONSAVEL_ORDEM_SEPULTAMENTO"
+  | "CONTRATANTE"
+  | "CONCESSIONARIO"
+  | "DEPENDENTE_CONCESSIONARIO"
+  | "ADMINISTRADOR_PROVISORIO_JAZIGO"
+  | "PAGADOR"
+  | "CONJUGE"
+  | "FILHO"
+  | "ATENDENTE";
+
+export type TipoConcessao = "QUADRA_GERAL_TEMPORARIA" | "JAZIGO_CONCESSAO" | "NAO_IDENTIFICADO";
+
+export type SituacaoConcessionario = "VIVO" | "FALECIDO" | "NAO_IDENTIFICADA";
+
+export interface EnderecoCadastral {
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  cidade?: string;
+  bairro?: string;
+  pontoReferencia?: string;
+  area?: string;
+}
+
+export interface PessoaCadastral {
+  nome?: string;
+  nomeNormalizado?: string;
+  cpf?: string;
+  rg?: string;
+  orgaoExpedidor?: string;
+  dataNascimento?: string;
+  dataFalecimento?: string;
+  estadoCivil?: string;
+  sexo?: string;
+  profissao?: string;
+  telefone1?: string;
+  telefone2?: string;
+  celular?: string;
+  fax?: string;
+  email?: string;
+  nacionalidade?: string;
+  localNascimento?: string;
+  ufNascimento?: string;
+  familia?: string;
+  matricula?: string;
+  observacao?: string;
+  enderecoResidencial?: EnderecoCadastral;
+  enderecoCobranca?: EnderecoCadastral;
+  enderecoComercial?: EnderecoCadastral;
+  /** Apenas para dependentes: grau de parentesco com o concessionário. Nunca com o falecido sepultado. */
+  grauParentescoComConcessionario?: string;
+  papeis?: PapelPessoa[];
+}
+
+export interface DadosConcessao {
+  inscricaoGscemi?: string;
+  numeroContrato?: string;
+  numeroArquivo?: string;
+  preContrato?: string;
+  dataCadastro?: string;
+  grupo?: string;
+  sg?: string;
+  tipoVenda?: string;
+  tipoConcessao?: string;
+  quadra?: string;
+  nomeQuadra?: string;
+  letra?: string;
+  lote?: string;
+  numero?: string;
+  qtdContratos?: number;
+  qtdJazigos?: number;
+  status?: string;
+  dataStatus?: string;
+  filial?: string;
+  vendedor?: string;
+  tipoConcessionario?: string;
+  valorInformado?: number;
+  tipoCobranca?: string;
+  diaVencimento?: string;
+  qtdCremacoes?: number;
+}
+
+export interface AlertaGscemi {
+  nivel: "info" | "warn" | "error";
+  mensagem: string;
+}
+
+export interface CadastroGscemi {
+  tipoConcessao: TipoConcessao;
+  concessao: DadosConcessao;
+  concessionario?: PessoaCadastral;
+  situacaoConcessionario: SituacaoConcessionario;
+  dependente?: PessoaCadastral;
+  administradorProvisorio?: PessoaCadastral;
+  alertas: AlertaGscemi[];
+  origemDocIds: string[];
+}
 
 export type TipoProcesso = "sepultamento" | "exumacao";
 
