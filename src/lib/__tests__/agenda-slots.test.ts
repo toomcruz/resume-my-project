@@ -30,6 +30,12 @@ function make(id: string, start: string | null, status: AgendaStatus): AgendaEve
     pss_reference: null,
     status,
     notes: null,
+    quadra_rua: null,
+    terreno: null,
+    gaveta: null,
+    arrival_time: null,
+    driver_name: null,
+    vehicle_plate: null,
     created_at: "",
     updated_at: "",
   };
