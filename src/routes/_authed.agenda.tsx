@@ -958,3 +958,63 @@ function Field({
     </div>
   );
 }
+
+function ArrivalPhotoButton({ onExtracted }: { onExtracted: (info: ArrivalInfo) => void }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const readArrival = useServerFn(readArrivalFromImage);
+  const [busy, setBusy] = useState(false);
+
+  async function onFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Envie uma imagem (print/foto).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () => reject(reader.error ?? new Error("Falha ao ler o arquivo"));
+        reader.readAsDataURL(file);
+      });
+      const info = await readArrival({ data: { imageDataUrl: dataUrl } });
+      onExtracted(info);
+      const parts: string[] = [];
+      if (info.arrival_time) parts.push(`chegada ${info.arrival_time}`);
+      if (info.driver_name) parts.push(info.driver_name);
+      if (info.vehicle_plate) parts.push(info.vehicle_plate);
+      toast.success(parts.length ? `Extraído: ${parts.join(" · ")}` : "Nada identificado na imagem.");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Não foi possível ler a imagem."));
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void onFile(file);
+        }}
+      />
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        onClick={() => inputRef.current?.click()}
+        disabled={busy}
+      >
+        {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
+        {busy ? "Lendo..." : "Enviar print"}
+      </Button>
+    </>
+  );
+
+}
