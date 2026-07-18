@@ -3,12 +3,10 @@ import { isPpsSchedule, validatePpsSchedule } from "@/lib/agenda-sync";
 
 describe("isPpsSchedule", () => {
   it("mantém compatibilidade com exumação classificada como exumacao_pss", () => {
-    expect(
-      isPpsSchedule({ processKey: "exumacao", tipoAgendaExumacao: "exumacao_pss" }),
-    ).toBe(true);
-    expect(
-      isPpsSchedule({ processKey: "exumacao", tipoAgendaExumacao: "exumacao" }),
-    ).toBe(false);
+    expect(isPpsSchedule({ processKey: "exumacao", tipoAgendaExumacao: "exumacao_pss" })).toBe(
+      true,
+    );
+    expect(isPpsSchedule({ processKey: "exumacao", tipoAgendaExumacao: "exumacao" })).toBe(false);
   });
 
   it("ativa PPS no sepultamento em jazigo somente quando não há gaveta", () => {
