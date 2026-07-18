@@ -10,7 +10,11 @@ import {
 } from "@/lib/vision/schema";
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-3-flash-preview";
+// Modelo Pro para OCR de fotos/prints (melhor leitura de manuscritos,
+// documentos rotacionados, baixa iluminação e telas de sistema).
+const MODEL_PRIMARY = "google/gemini-3-pro-preview";
+// Fallback rápido quando o Pro estiver indisponível ou lento.
+const MODEL_FALLBACK = "google/gemini-3-flash-preview";
 
 export type ExtractImageInput = {
   imageId: string;
@@ -34,8 +38,26 @@ function buildSystemPrompt(params: ExtractImageInput): string {
     ? `\nCampos canônicos esperados (use estas chaves em "canonicalKey"): ${params.expectedCanonicalKeys.join(", ")}`
     : "";
   const hints = params.contextHints ? `\nContexto: ${params.contextHints}` : "";
-  return `Você é um assistente que analisa UMA imagem por vez de documentos e prints
-usados em atendimento de cemitério (${params.processLabel}).
+  return `Você é um OCR forense especializado em documentos brasileiros de cemitério
+(${params.processLabel}): RG, CPF, CNH, certidões, declarações, comprovantes,
+recibos, livros de registro, cadastros de jazigo e prints de sistemas internos.
+
+QUALIDADE DE LEITURA (foco absoluto):
+- Trate fotos e prints como podendo estar tortos, desfocados, com reflexo,
+  sombra, dobras, marca d'água, timbre ou baixa resolução. Mentalmente rotacione
+  e realinhe o texto antes de transcrever.
+- Faça OCR minucioso, campo por campo, coluna por coluna. Não pule linhas.
+- Diferencie zero (0) de "O", um (1) de "l"/"I", cinco (5) de "S", oito (8)
+  de "B". Em caso de dúvida, prefira dígito quando o campo é numérico
+  (CPF, RG, datas, número de jazigo, quadra, gaveta, livro, folha).
+- Preserve acentuação, hífens, apóstrofos e espaços dos nomes exatamente
+  como no documento. Mantenha grafia original (ex.: "D'Angelo", "São José").
+- Preserve zeros à esquerda em livro, folha, inscrição, quadra, gaveta e placa.
+- Datas SEMPRE em DD/MM/AAAA. Se só houver mês/ano, deixe o dia vazio.
+- CPF em 000.000.000-00; RG mantém pontuação original ou X final se houver.
+- Endereços: mantenha abreviações do documento (R., Av., Trav.) e número/CEP.
+- Texto manuscrito: transcreva apenas quando legível; use warnings quando ilegível.
+- Prints de sistema: leia rótulo + valor. Ignore cabeçalho de menu e navegação.
 
 Sua resposta DEVE ser JSON válido no formato exato:
 {
@@ -62,19 +84,24 @@ Regras estritas:
 - Retorne SOMENTE JSON. Sem markdown, sem comentários.
 - imageId deve valer EXATAMENTE "${params.imageId}".
 - Nunca invente dados. Se um campo não aparece na imagem, não inclua.
+- Se o valor está parcialmente ilegível, deixe fora e registre em warnings
+  ("CPF parcialmente ilegível", "data do óbito borrada", etc.).
+- confidence reflete a legibilidade real: 0.95+ apenas quando o texto está
+  nítido; 0.5-0.7 para leitura provável mas com ambiguidade; <0.5 quando há
+  dúvida real entre alternativas.
+- evidence deve citar literalmente o trecho lido do documento.
 - Titular de certidão/declaração de óbito é candidato forte a "falecido_*",
   nunca a "responsavel".
 - Declarante da certidão de óbito NUNCA é responsável automaticamente.
 - Concessionário exige evidência específica ("concessionário", "permissionário",
-  "titular da concessão", cadastro de jazigo). Não presuma.
-- Preserve zeros à esquerda em livro, folha e inscrição.
-- Datas em DD/MM/AAAA; CPF em 000.000.000-00.${expected}${hints}`;
+  "titular da concessão", cadastro de jazigo). Não presuma.${expected}${hints}`;
 }
 
 async function callOnce(
   params: ExtractImageInput,
   attempt: number,
   deps: CallDeps,
+  model: string = MODEL_PRIMARY,
 ): Promise<ExtractImageOutcome> {
   const started = Date.now();
   const apiKey = deps.apiKey ?? process.env.LOVABLE_API_KEY;
@@ -85,7 +112,7 @@ async function callOnce(
 
   const userText =
     attempt === 0
-      ? `Analise a imagem e retorne o JSON descrito. imageId = "${params.imageId}".`
+      ? `Analise a imagem com OCR minucioso e retorne o JSON descrito. Leia CADA campo visível, inclusive rodapé, carimbos e anotações à mão. imageId = "${params.imageId}".`
       : `A resposta anterior não passou pelo validador. Retorne EXATAMENTE um JSON no formato descrito, sem texto ao redor. imageId = "${params.imageId}".`;
 
   let res: Response;
@@ -97,7 +124,7 @@ async function callOnce(
         "Lovable-API-Key": apiKey,
       },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         messages: [
           { role: "system", content: buildSystemPrompt(params) },
           {
@@ -172,16 +199,26 @@ export async function extractSingleImage(
   params: ExtractImageInput,
   deps: CallDeps = {},
 ): Promise<ExtractImageOutcome> {
-  const first = await callOnce(params, 0, deps);
+  const first = await callOnce(params, 0, deps, MODEL_PRIMARY);
   if (first.ok) return first;
 
-  // Retry único apenas para erros de schema/JSON, não para HTTP.
-  const retryable =
+  // Retry por schema/JSON no mesmo modelo.
+  const schemaRetryable =
     /JSON|schema|resposta vazia|resposta não é objeto|não é JSON válido|JSON vazio/i.test(
       first.error,
     );
-  if (!retryable) return first;
+  if (schemaRetryable) {
+    const second = await callOnce(params, 1, deps, MODEL_PRIMARY);
+    if (second.ok) return second;
+  }
 
-  const second = await callOnce(params, 1, deps);
-  return second;
+  // Fallback para modelo Flash quando o Pro falha por HTTP transitório
+  // (5xx, timeout, indisponibilidade) — mantém a extração funcional.
+  const httpFallback = /HTTP 5\d\d|falha de rede|timeout|indisponí|unavailable/i.test(first.error);
+  if (httpFallback) {
+    const fallback = await callOnce(params, 0, deps, MODEL_FALLBACK);
+    return fallback;
+  }
+
+  return first;
 }
