@@ -1,0 +1,66 @@
+name: Capture failed merge diagnostics
+
+on:
+  push:
+    branches:
+      - fix/restore-original-docx-layouts
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    if: ${{ !contains(github.event.head_commit.message, '[failed-merge-diagnostics]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/restore-original-docx-layouts
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture exact failed merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch_sha="$(git rev-parse HEAD)"
+          git fetch origin c76ac692f318b80ae952a2cc0710f6061fe32cf2
+          git checkout c76ac692f318b80ae952a2cc0710f6061fe32cf2
+
+          mapfile -d '' changed_files < <(git diff --name-only --diff-filter=ACMRT -z 894e9ea9b1104f8b6ef6536e355913e4acb5f0f8...HEAD)
+          prettier_files=()
+          eslint_files=()
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              *.ts|*.tsx|*.js|*.jsx|*.json|*.yml|*.yaml|*.css|*.scss|*.md|*.html)
+                prettier_files+=("$file")
+                ;;
+            esac
+            case "$file" in
+              *.ts|*.tsx|*.js|*.jsx)
+                eslint_files+=("$file")
+                ;;
+            esac
+          done
+
+          printf '%s\n' "${prettier_files[@]}" > /tmp/failed-merge-files.txt
+          bunx prettier --check "${prettier_files[@]}" > /tmp/failed-merge-prettier.txt 2>&1 || true
+          bunx eslint "${eslint_files[@]}" > /tmp/failed-merge-eslint.txt 2>&1 || true
+
+          git checkout "$branch_sha"
+          cp /tmp/failed-merge-*.txt .
+
+      - name: Commit diagnostics
+        run: |
+          rm .github/workflows/capture-failed-merge.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: registra falha exata do merge [failed-merge-diagnostics]"
+          git push origin HEAD:fix/restore-original-docx-layouts
