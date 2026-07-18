@@ -771,8 +771,66 @@ function AgendaDialog({
                   onChange={(event) => onChange("funeral_home", event.target.value)}
                 />
               </Field>
+              <Field label="Quadra / Rua">
+                <Input
+                  value={draft.quadra_rua}
+                  onChange={(event) => onChange("quadra_rua", event.target.value)}
+                />
+              </Field>
+              <Field label="Terreno">
+                <Input
+                  value={draft.terreno}
+                  onChange={(event) => onChange("terreno", event.target.value)}
+                />
+              </Field>
+              <Field label="Gaveta">
+                <Input
+                  value={draft.gaveta}
+                  onChange={(event) => onChange("gaveta", event.target.value)}
+                />
+              </Field>
+
+              <div className="sm:col-span-2 mt-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Chegada do corpo</p>
+                    <p className="text-xs text-muted-foreground">
+                      Envie o print da mensagem do grupo e o sistema preenche horário, motorista e placa.
+                    </p>
+                  </div>
+                  <ArrivalPhotoButton
+                    onExtracted={(info) => {
+                      if (info.arrival_time) onChange("arrival_time", info.arrival_time);
+                      if (info.driver_name) onChange("driver_name", info.driver_name);
+                      if (info.vehicle_plate) onChange("vehicle_plate", info.vehicle_plate);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <Field label="Horário de chegada do corpo">
+                <Input
+                  type="time"
+                  value={draft.arrival_time}
+                  onChange={(event) => onChange("arrival_time", event.target.value)}
+                />
+              </Field>
+              <Field label="Motorista">
+                <Input
+                  value={draft.driver_name}
+                  onChange={(event) => onChange("driver_name", event.target.value)}
+                />
+              </Field>
+              <Field label="Placa do veículo">
+                <Input
+                  value={draft.vehicle_plate}
+                  onChange={(event) => onChange("vehicle_plate", event.target.value.toUpperCase())}
+                  placeholder="AAA0A00"
+                />
+              </Field>
             </>
           )}
+
 
           {exumation && (
             <>
