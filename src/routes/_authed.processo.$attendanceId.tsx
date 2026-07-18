@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { removeDiscrepancyOptimistically } from "@/lib/attendance-runtime";
 import {
   classifyAndExtractProcess,
   confirmProcessField,
@@ -92,22 +93,58 @@ function ProcessoPage() {
   const confirmField = useServerFn(confirmProcessField);
   const resolveDisc = useServerFn(resolveDiscrepancy);
 
+  const qc = useQueryClient();
+  const queryKey = ["funeral-process", attendanceId] as const;
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["funeral-process", attendanceId],
+    queryKey,
     queryFn: () => getProc({ data: { attendanceId } }),
+    staleTime: 30_000,
   });
 
   const runMut = useMutation({
     mutationFn: async () => runExtract({ data: { attendanceId, tipoProcesso: "sepultamento" } }),
-    onSuccess: () => { toast.success("Documentos classificados e extraídos"); refetch(); router.invalidate(); },
+    onSuccess: () => {
+      toast.success("Documentos classificados e extraídos");
+      // Uma única invalidação silenciosa cobre a conferência final após a
+      // extração — evita `refetch()` + `router.invalidate()` simultâneos.
+      qc.invalidateQueries({ queryKey });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const saveMut = useMutation({
     mutationFn: async (vars: { path: string; value: string }) =>
       confirmField({ data: { processId: (data as { id: string }).id, campoPath: vars.path, valorCorreto: vars.value } }),
-    onSuccess: () => { toast.success("Correção registrada"); refetch(); },
+    onSuccess: () => {
+      toast.success("Correção registrada");
+      qc.invalidateQueries({ queryKey });
+    },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  type ProcQueryData = { id: string; dados?: unknown } | null;
+
+  const resolveMut = useMutation({
+    mutationFn: async (vars: { id: string; status: "CONFIRMADO" | "DESCARTADO"; valorFinal?: string }) =>
+      resolveDisc({ data: { discrepancyId: vars.id, status: vars.status, valorFinal: vars.valorFinal } }),
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueryData<ProcQueryData>(queryKey);
+      qc.setQueryData<ProcQueryData>(queryKey, (old) => {
+        if (!old || !old.dados) return old;
+        const nextDados = removeDiscrepancyOptimistically(
+          old.dados as Record<string, unknown> & { divergencias?: Array<{ id?: string }> },
+          vars.id,
+        );
+        return nextDados ? { ...old, dados: nextDados } : old;
+      });
+      return { previous };
+    },
+    onError: (err: Error, _vars, ctx) => {
+      if (ctx?.previous !== undefined) qc.setQueryData(queryKey, ctx.previous);
+      toast.error(err.message);
+    },
   });
 
   const processo = (data as { dados?: unknown } | null)?.dados as ProcessoFunerario | undefined;
@@ -238,9 +275,9 @@ function ProcessoPage() {
                   </div>
                   {d.id && (
                     <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="outline" onClick={() => resolveDisc({ data: { discrepancyId: d.id!, status: "CONFIRMADO", valorFinal: d.valorA } }).then(() => refetch())}>Manter A</Button>
-                      <Button size="sm" variant="outline" onClick={() => resolveDisc({ data: { discrepancyId: d.id!, status: "CONFIRMADO", valorFinal: d.valorB } }).then(() => refetch())}>Manter B</Button>
-                      <Button size="sm" variant="ghost" onClick={() => resolveDisc({ data: { discrepancyId: d.id!, status: "DESCARTADO" } }).then(() => refetch())}>Descartar</Button>
+                      <Button size="sm" variant="outline" onClick={() => resolveMut.mutate({ id: d.id!, status: "CONFIRMADO", valorFinal: d.valorA })}>Manter A</Button>
+                      <Button size="sm" variant="outline" onClick={() => resolveMut.mutate({ id: d.id!, status: "CONFIRMADO", valorFinal: d.valorB })}>Manter B</Button>
+                      <Button size="sm" variant="ghost" onClick={() => resolveMut.mutate({ id: d.id!, status: "DESCARTADO" })}>Descartar</Button>
                     </div>
                   )}
                 </div>

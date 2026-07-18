@@ -19,9 +19,11 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
-    defaultPreload: "intent",
-    defaultPreloadDelay: 80,
-    defaultPreloadStaleTime: 0,
+    // Preload em hover ("intent") disparava loaders/queries a cada passada
+    // do mouse sobre um Link, gerando chamadas desnecessárias ao backend.
+    // Desligado para reduzir consumo de Run Credits.
+    defaultPreload: false,
+    defaultPreloadStaleTime: 30_000,
   });
 
   return router;

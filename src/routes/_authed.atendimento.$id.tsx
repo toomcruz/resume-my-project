@@ -1,7 +1,14 @@
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import {
+  canStartAutoExtract,
+  computeExtractedSignature,
+  decidePollInterval,
+  EXTRACT_LOCK_TTL_MS,
+  mergeFieldsPreservingEdits,
+} from "@/lib/attendance-runtime";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +72,11 @@ function AttendanceDetail() {
   const generateFn = useServerFn(generateDocument);
   const signFn = useServerFn(getSignedUrl);
 
+  // Polling controlado: 5s enquanto extrai, cortado imediatamente ao chegar
+  // em qualquer status terminal, com timeout máximo de 120s.
+  const pollStartRef = useRef<number | null>(null);
+  const [extractTimedOut, setExtractTimedOut] = useState(false);
+
   const { data: att, isLoading } = useQuery({
     queryKey: ["attendance", id],
     queryFn: async () => {
@@ -74,9 +86,26 @@ function AttendanceDetail() {
     },
     refetchInterval: (query) => {
       const status = (query.state.data as { status?: string } | undefined)?.status;
-      return status === "extracting" ? 2000 : false;
+      const decision = decidePollInterval({
+        status,
+        startedAt: pollStartRef.current,
+        now: Date.now(),
+      });
+      pollStartRef.current = decision.startedAt;
+      if (decision.timedOut && !extractTimedOut) {
+        // agendar toggle fora do callback do react-query
+        queueMicrotask(() => setExtractTimedOut(true));
+      }
+      return decision.interval;
     },
   });
+
+  useEffect(() => {
+    if (!extractTimedOut) return;
+    toast.error(
+      "A extração demorou além do esperado. Verifique as imagens e use Re-extrair se necessário.",
+    );
+  }, [extractTimedOut]);
 
   const { data: images } = useQuery({
     queryKey: ["attendance-images", id],
@@ -92,7 +121,11 @@ function AttendanceDetail() {
 
   const { data: templates } = useQuery({
     queryKey: ["templates", att?.process, att?.subprocess],
-    enabled: !!att,
+    enabled: !!att?.process,
+    // process/subprocess mudam raramente para o mesmo atendimento; mantém
+    // fresco por 5 minutos para evitar refetches disparados pelo polling.
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_templates")
@@ -141,17 +174,63 @@ function AttendanceDetail() {
     });
   }, [att?.process, att?.subprocess, att?.subprocess_details]);
 
+  // Preserva edições manuais e só reprocessa `extracted_data` quando há
+  // uma nova versão real da extração (assinatura diferente) ou quando o
+  // atendimento selecionado muda.
+  const userEditedKeysRef = useRef<Set<string>>(new Set());
+  const lastExtractionSignatureRef = useRef<string>("");
+  const lastAttendanceIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (att?.extracted_data) {
-      const raw = att.extracted_data as Record<string, unknown>;
-      const flat: Record<string, string> = {};
-      for (const [k, v] of Object.entries(raw)) {
-        if (k.startsWith("_")) continue;
-        if (typeof v === "string") flat[k] = v;
-      }
-      setFields({ ...flat, ...triagemFields });
+    if (lastAttendanceIdRef.current !== id) {
+      userEditedKeysRef.current = new Set();
+      lastExtractionSignatureRef.current = "";
+      lastAttendanceIdRef.current = id;
     }
-  }, [att?.extracted_data, triagemFields]);
+  }, [id]);
+
+  useEffect(() => {
+    if (!att?.extracted_data) return;
+    const raw = att.extracted_data as Record<string, unknown>;
+    const signature = computeExtractedSignature(raw);
+    const isNewExtraction = signature !== lastExtractionSignatureRef.current;
+    const flat: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (k.startsWith("_")) continue;
+      if (typeof v === "string") flat[k] = v;
+    }
+    setFields((current) => {
+      if (!isNewExtraction && Object.keys(current).length > 0) {
+        // Sem nova versão de extração: apenas reaplica overrides derivados
+        // (triagem) sem sobrescrever edições do usuário.
+        return { ...current, ...triagemFields };
+      }
+      lastExtractionSignatureRef.current = signature;
+      return mergeFieldsPreservingEdits({
+        incoming: flat,
+        current,
+        userEditedKeys: userEditedKeysRef.current,
+        overrides: triagemFields,
+      });
+    });
+  }, [att?.extracted_data, triagemFields, id]);
+
+  const handleFieldsChange = useCallback(
+    (updater: React.SetStateAction<Record<string, string>>) => {
+      setFields((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        for (const [key, value] of Object.entries(next)) {
+          if (prev[key] !== value) userEditedKeysRef.current.add(key);
+        }
+        for (const key of Object.keys(prev)) {
+          if (!(key in next)) userEditedKeysRef.current.add(key);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
 
   // Metadados de confiança/conflito derivados do estado de visão salvo.
   const fieldMeta = useMemo<Record<string, FlatFieldMeta>>(() => {
@@ -289,22 +368,85 @@ function AttendanceDetail() {
         }
       }
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Falha na extração"));
+      const message = getErrorMessage(error, "Falha na extração");
+      toast.error(message);
+      // Garante que o status nunca fique preso em "extracting" após
+      // qualquer falha (Gemini, geração de documento, storage…).
+      try {
+        await supabase.from("attendances").update({ status: "error" }).eq("id", id);
+        await qc.invalidateQueries({ queryKey: ["attendance", id] });
+      } catch (persistError) {
+        console.error("[atendimento] falha ao registrar status=error:", persistError);
+      }
     } finally {
       setExtracting(false);
     }
   }
 
+  // Proteção em 2 camadas contra disparos duplicados da extração:
+  //   1) `autoExtractRef` — evita re-disparo durante a mesma montagem.
+  //   2) `sessionStorage` — evita re-disparo entre remounts/tabs enquanto
+  //      já existe uma extração ativa para o mesmo atendimento.
+  const autoExtractRef = useRef(false);
   useEffect(() => {
-    if (
-      att?.status === "extracting" &&
-      !Object.keys(att.extracted_data ?? {}).length &&
-      !extracting
-    ) {
-      triggerExtract(true);
+    if (autoExtractRef.current) return;
+    const status = att?.status;
+    const hasData = Object.keys(att?.extracted_data ?? {}).length > 0;
+    if (extractTimedOut) return;
+    const lockKey = `attendance:extract-lock:${id}`;
+    let lockTimestamp: number | null = null;
+    try {
+      const raw = sessionStorage.getItem(lockKey);
+      if (raw) {
+        const parsed = Number(raw);
+        if (Number.isFinite(parsed)) lockTimestamp = parsed;
+      }
+    } catch {
+      // sessionStorage indisponível — segue apenas com o guard local.
     }
+    const now = Date.now();
+    const canStart = canStartAutoExtract({
+      status,
+      hasExtractedData: hasData,
+      extracting,
+      lockTimestamp,
+      now,
+    });
+    if (!canStart) return;
+    try {
+      sessionStorage.setItem(lockKey, String(now));
+    } catch {
+      // ignora
+    }
+    autoExtractRef.current = true;
+    triggerExtract(true).finally(() => {
+      try {
+        const stored = sessionStorage.getItem(lockKey);
+        if (stored && Number(stored) === now) sessionStorage.removeItem(lockKey);
+      } catch {
+        // ignora
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [att?.status]);
+  }, [att?.status, att?.extracted_data, id, extractTimedOut]);
+
+  // Garante liberação do lock persistente ao desmontar caso a extração
+  // ainda estivesse em andamento (evita "lock preso" após 5 min de TTL).
+  useEffect(() => {
+    const lockKey = `attendance:extract-lock:${id}`;
+    return () => {
+      try {
+        const raw = sessionStorage.getItem(lockKey);
+        if (!raw) return;
+        const ts = Number(raw);
+        if (Number.isFinite(ts) && Date.now() - ts >= EXTRACT_LOCK_TTL_MS) {
+          sessionStorage.removeItem(lockKey);
+        }
+      } catch {
+        // ignora
+      }
+    };
+  }, [id]);
 
   async function saveFields() {
     setSaving(true);
@@ -527,7 +669,7 @@ function AttendanceDetail() {
                   summary={reviewSummary}
                   conflicts={visionConflicts}
                   criticalKeys={criticalKeys}
-                  onFieldsChange={setFields}
+                  onFieldsChange={handleFieldsChange}
                   onConfirmField={(key) =>
                     setConfirmedOverrides((prev) => {
                       const next = new Set(prev);
