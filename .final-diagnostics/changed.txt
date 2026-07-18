@@ -1,3 +1,7 @@
+.final-diagnostics/changed.txt
+.final-diagnostics/eslint.txt
+.final-diagnostics/prettier.txt
+.final-diagnostics/tests.txt
 .github/workflows/diagnose-final-pps.yml
 .trigger-final-pps-diagnostic
 src/components/triagem-sepultamento.tsx
