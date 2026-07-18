@@ -174,17 +174,63 @@ function AttendanceDetail() {
     });
   }, [att?.process, att?.subprocess, att?.subprocess_details]);
 
+  // Preserva edições manuais e só reprocessa `extracted_data` quando há
+  // uma nova versão real da extração (assinatura diferente) ou quando o
+  // atendimento selecionado muda.
+  const userEditedKeysRef = useRef<Set<string>>(new Set());
+  const lastExtractionSignatureRef = useRef<string>("");
+  const lastAttendanceIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (att?.extracted_data) {
-      const raw = att.extracted_data as Record<string, unknown>;
-      const flat: Record<string, string> = {};
-      for (const [k, v] of Object.entries(raw)) {
-        if (k.startsWith("_")) continue;
-        if (typeof v === "string") flat[k] = v;
-      }
-      setFields({ ...flat, ...triagemFields });
+    if (lastAttendanceIdRef.current !== id) {
+      userEditedKeysRef.current = new Set();
+      lastExtractionSignatureRef.current = "";
+      lastAttendanceIdRef.current = id;
     }
-  }, [att?.extracted_data, triagemFields]);
+  }, [id]);
+
+  useEffect(() => {
+    if (!att?.extracted_data) return;
+    const raw = att.extracted_data as Record<string, unknown>;
+    const signature = computeExtractedSignature(raw);
+    const isNewExtraction = signature !== lastExtractionSignatureRef.current;
+    const flat: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (k.startsWith("_")) continue;
+      if (typeof v === "string") flat[k] = v;
+    }
+    setFields((current) => {
+      if (!isNewExtraction && Object.keys(current).length > 0) {
+        // Sem nova versão de extração: apenas reaplica overrides derivados
+        // (triagem) sem sobrescrever edições do usuário.
+        return { ...current, ...triagemFields };
+      }
+      lastExtractionSignatureRef.current = signature;
+      return mergeFieldsPreservingEdits({
+        incoming: flat,
+        current,
+        userEditedKeys: userEditedKeysRef.current,
+        overrides: triagemFields,
+      });
+    });
+  }, [att?.extracted_data, triagemFields, id]);
+
+  const handleFieldsChange = useCallback(
+    (updater: React.SetStateAction<Record<string, string>>) => {
+      setFields((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        for (const [key, value] of Object.entries(next)) {
+          if (prev[key] !== value) userEditedKeysRef.current.add(key);
+        }
+        for (const key of Object.keys(prev)) {
+          if (!(key in next)) userEditedKeysRef.current.add(key);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
 
   // Metadados de confiança/conflito derivados do estado de visão salvo.
   const fieldMeta = useMemo<Record<string, FlatFieldMeta>>(() => {
