@@ -58,6 +58,10 @@ export function formatIsoToBr(iso: string): string {
 export interface TriagemSepultamentoState {
   /** "quadra_geral" | "jazigo" — usado como `subprocess`. */
   subprocess?: string;
+  /** Resposta obrigatória somente quando o sepultamento é em jazigo. */
+  jazigo_possui_gaveta_disponivel?: "sim" | "nao" | "";
+  /** Horário da Exumação PPS quando não há gaveta disponível. */
+  hora_exumacao_pps?: string;
   /** ISO YYYY-MM-DD. */
   data_agendada?: string;
   hora_sepultamento?: string;
@@ -105,6 +109,8 @@ export const TRIAGEM_SEPULTAMENTO_REVIEW_KEYS = new Set([
   "placa",
   "concessao",
   "quadra_geral_gaveta",
+  "jazigo_possui_gaveta_disponivel",
+  "hora_exumacao_pps",
 ]);
 
 /**
@@ -119,6 +125,19 @@ export function validateTriagemSepultamento(state: TriagemSepultamentoState): st
   const errors: string[] = [];
   if (state.subprocess !== "quadra_geral" && state.subprocess !== "jazigo") {
     errors.push("Selecione o local do sepultamento (Quadra geral ou Jazigo).");
+  }
+  if (state.subprocess === "jazigo") {
+    if (
+      state.jazigo_possui_gaveta_disponivel !== "sim" &&
+      state.jazigo_possui_gaveta_disponivel !== "nao"
+    ) {
+      errors.push("Informe se há gaveta disponível no jazigo.");
+    } else if (
+      state.jazigo_possui_gaveta_disponivel === "nao" &&
+      !state.hora_exumacao_pps?.trim()
+    ) {
+      errors.push("Selecione o horário da Exumação PPS.");
+    }
   }
   if (!state.data_agendada?.trim()) {
     errors.push("Selecione a data do sepultamento.");
@@ -173,6 +192,12 @@ export function buildTriagemOverrides(state: TriagemSepultamentoState): Record<s
     const { concessao, quadra_geral_gaveta } = applyLocalSepultamento(state.subprocess);
     out.concessao = concessao;
     out.quadra_geral_gaveta = quadra_geral_gaveta;
+  }
+  if (state.subprocess === "jazigo" && state.jazigo_possui_gaveta_disponivel) {
+    out.jazigo_possui_gaveta_disponivel = state.jazigo_possui_gaveta_disponivel;
+  }
+  if (state.jazigo_possui_gaveta_disponivel === "nao" && state.hora_exumacao_pps) {
+    out.hora_exumacao_pps = state.hora_exumacao_pps;
   }
   return out;
 }

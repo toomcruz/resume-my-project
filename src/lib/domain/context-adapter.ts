@@ -9,9 +9,7 @@ import type { ProcessKey as RuntimeProcessKey } from "@/lib/processes";
  * every other process shares the same slug on both sides. This adapter is
  * the only place the two vocabularies meet — never rewrite the DB column.
  */
-export function runtimeProcessToDomain(
-  key: RuntimeProcessKey | string,
-): DomainProcessKey | null {
+export function runtimeProcessToDomain(key: RuntimeProcessKey | string): DomainProcessKey | null {
   switch (key) {
     case "sepultamento":
       return "velorio_sepultamento";
@@ -44,11 +42,7 @@ export function buildAttendanceContext(
   const ctx: AttendanceContext = { process };
 
   if (process === "ossario") {
-    if (
-      subprocess === "aluguel" ||
-      subprocess === "aquisicao" ||
-      subprocess === "renovacao"
-    ) {
+    if (subprocess === "aluguel" || subprocess === "aquisicao" || subprocess === "renovacao") {
       ctx.ossario_operacao = subprocess;
     }
   }
@@ -65,9 +59,17 @@ export function buildAttendanceContext(
     }
     if (extras.has_wake === "sim" || extras.has_wake === "nao") {
       ctx.has_wake = extras.has_wake;
+    } else if (extras.tem_velorio === "SIM") {
+      ctx.has_wake = "sim";
+    } else if (extras.tem_velorio === "NAO" || extras.sem_velorio === "SIM") {
+      ctx.has_wake = "nao";
     }
-    if (extras.burial_here === "sim" || extras.burial_here === "nao") {
-      ctx.burial_here = extras.burial_here;
+    ctx.burial_here = extras.burial_here === "nao" ? "nao" : "sim";
+    if (
+      extras.jazigo_possui_gaveta_disponivel === "sim" ||
+      extras.jazigo_possui_gaveta_disponivel === "nao"
+    ) {
+      ctx.jazigo_possui_gaveta_disponivel = extras.jazigo_possui_gaveta_disponivel;
     }
   }
 
@@ -75,10 +77,7 @@ export function buildAttendanceContext(
     if (subprocess === "quadra_geral" || subprocess === "jazigo") {
       ctx.local_sepultamento_tipo = subprocess;
     }
-    if (
-      extras.exhumation_phase === "preparacao" ||
-      extras.exhumation_phase === "execucao"
-    ) {
+    if (extras.exhumation_phase === "preparacao" || extras.exhumation_phase === "execucao") {
       ctx.exhumation_phase = extras.exhumation_phase;
     }
   }

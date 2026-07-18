@@ -68,6 +68,7 @@ describe("triagem-sepultamento", () => {
   it("validação aceita velório mesmo com detalhes ainda vazios", () => {
     const errs = validateTriagemSepultamento({
       subprocess: "jazigo",
+      jazigo_possui_gaveta_disponivel: "sim",
       data_agendada: "2026-07-16",
       hora_sepultamento: "14:00",
       tem_velorio: "SIM",
@@ -81,6 +82,39 @@ describe("triagem-sepultamento", () => {
       data_agendada: "2026-07-16",
       hora_sepultamento: "10:00",
       sem_velorio: "SIM",
+    });
+    expect(errs).toEqual([]);
+  });
+
+  it("jazigo exige resposta sobre gaveta disponível", () => {
+    const errs = validateTriagemSepultamento({
+      subprocess: "jazigo",
+      jazigo_possui_gaveta_disponivel: "sim",
+      data_agendada: "2026-07-16",
+      hora_sepultamento: "14:00",
+      tem_velorio: "NAO",
+    });
+    expect(errs[0]).toBe("Informe se há gaveta disponível no jazigo.");
+  });
+
+  it("jazigo sem gaveta exige horário da Exumação PPS", () => {
+    const errs = validateTriagemSepultamento({
+      subprocess: "jazigo",
+      jazigo_possui_gaveta_disponivel: "nao",
+      data_agendada: "2026-07-16",
+      hora_sepultamento: "14:00",
+      tem_velorio: "NAO",
+    });
+    expect(errs[0]).toBe("Selecione o horário da Exumação PPS.");
+  });
+
+  it("jazigo com gaveta segue sem Exumação PPS", () => {
+    const errs = validateTriagemSepultamento({
+      subprocess: "jazigo",
+      jazigo_possui_gaveta_disponivel: "sim",
+      data_agendada: "2026-07-16",
+      hora_sepultamento: "14:00",
+      tem_velorio: "NAO",
     });
     expect(errs).toEqual([]);
   });
@@ -106,6 +140,7 @@ describe("triagem-sepultamento", () => {
   it("buildTriagemOverrides inclui placa quando confirmada", () => {
     const out = buildTriagemOverrides({
       subprocess: "jazigo",
+      jazigo_possui_gaveta_disponivel: "sim",
       data_agendada: "2026-07-16",
       hora_sepultamento: "14:00",
       tem_velorio: "SIM",
@@ -121,6 +156,7 @@ describe("triagem-sepultamento", () => {
   it("buildTriagemOverrides inclui todos os dados operacionais da triagem", () => {
     const out = buildTriagemOverrides({
       subprocess: "jazigo",
+      jazigo_possui_gaveta_disponivel: "sim",
       data_agendada: "2026-07-16",
       hora_sepultamento: "14:00",
       tem_velorio: "SIM",

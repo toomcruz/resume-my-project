@@ -18,8 +18,12 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, CalendarDays, FileText, Loader2, Upload, X } from "lucide-react";
 import type { AgendaType } from "@/lib/agenda";
-import { resolveAgendaType, shouldCreateAgendaEvent, validatePpsSchedule } from "@/lib/agenda-sync";
-import { EXHUMATION_TIME_SLOTS } from "@/lib/domain/exhumation-slots";
+import {
+  burialRequiresPps,
+  resolveAgendaType,
+  shouldCreateAgendaEvent,
+  validatePpsSchedule,
+} from "@/lib/agenda-sync";
 import { buildAttendanceContext } from "@/lib/domain/context-adapter";
 import { getRequiredDocuments } from "@/lib/domain/documents";
 import { getErrorMessage } from "@/lib/error-message";
@@ -55,25 +59,11 @@ function NewAttendance() {
   const [submitting, setSubmitting] = useState(false);
 
   const proc = getProcess(processKey);
-  const isPps = processKey === "exumacao" && extras.tipo_agenda_exumacao === "exumacao_pss";
-  const visibleExtraFields = (
+  const visibleExtraFields =
     proc?.extraFields?.filter(
       (field) => !field.showWhen || extras[field.showWhen.field] === field.showWhen.equals,
-    ) ?? []
-  ).map<ProcessExtraField>((field) => {
-    if (isPps && field.name === "hora_agendamento") {
-      return {
-        ...field,
-        type: "select",
-        options: EXHUMATION_TIME_SLOTS.map((slot) => ({
-          value: slot,
-          label: slot,
-        })),
-        description: "Exumação PSS: apenas 08:30, 09:00 ou 09:30.",
-      };
-    }
-    return field;
-  });
+    ) ?? [];
+  const isSepultamentoPps = processKey === "sepultamento" && burialRequiresPps(subprocess, extras);
 
   const previewedDocuments = (() => {
     if (!proc) return [];
@@ -90,8 +80,8 @@ function NewAttendance() {
   function selectProcess(key: string) {
     setProcessKey(key);
     setSubprocess("");
-    // Exumação em quadra geral já vai direto para a agenda normal.
-    // Em jazigo o operador precisa antes responder se há gaveta disponível.
+    // Exumação escolhida como processo sempre usa a agenda normal.
+    // PPS só é decidido dentro do Sepultamento em jazigo sem gaveta.
     setExtras(key === "exumacao" ? { tipo_agenda_exumacao: "exumacao" } : {});
     setStep("details");
   }
@@ -101,9 +91,7 @@ function NewAttendance() {
     if (processKey === "exumacao") {
       setExtras((current) => ({
         ...current,
-        // Quadra geral nunca é PSS. Em jazigo limpamos a escolha para exigir
-        // a resposta explícita sobre disponibilidade de gaveta.
-        tipo_agenda_exumacao: value === "quadra_geral" ? "exumacao" : "",
+        tipo_agenda_exumacao: "exumacao",
       }));
     }
   }
@@ -116,48 +104,95 @@ function NewAttendance() {
     setExtras((current) => ({ ...current, ...patch }));
   }
 
-
   const isSepultamento = processKey === "sepultamento";
 
   function hasScheduleWithoutDate(): boolean {
     if (!proc || !["sepultamento", "exumacao"].includes(proc.key)) return false;
-    if (proc.key === "sepultamento" && extras.tem_velorio !== "SIM") return false;
+    if (proc.key === "sepultamento" && extras.tem_velorio !== "SIM" && !isSepultamentoPps) {
+      return false;
+    }
     const scheduleKeys =
       proc.key === "sepultamento"
-        ? ["inicio_velorio", "fim_velorio", "sala_velorio", "local_sepultamento", "funeraria"]
+        ? [
+            "inicio_velorio",
+            "fim_velorio",
+            "sala_velorio",
+            "local_sepultamento",
+            "funeraria",
+            "hora_exumacao_pps",
+          ]
         : ["hora_agendamento", "referencia_pps", "referencia_pss"];
     return scheduleKeys.some((key) => extras[key]?.trim()) && !extras.data_agendada?.trim();
   }
 
-  async function createLinkedAgendaEvent(attendanceId: string, userId: string): Promise<void> {
+  async function createLinkedAgendaEvents(attendanceId: string, userId: string): Promise<void> {
     if (!proc || !shouldCreateAgendaEvent(proc.key, extras)) return;
     const eventDate = extras.data_agendada!.trim();
-    const agendaType = resolveAgendaType(proc.key, extras.tipo_agenda_exumacao);
-    if (!agendaType) return;
+    const rows: Array<Record<string, unknown>> = [];
 
-    const isBurialWithWake = proc.key === "sepultamento";
-    const { error } = await db.from("agenda_events").insert({
-      user_id: userId,
-      attendance_id: attendanceId,
-      agenda_type: agendaType,
-      event_date: eventDate,
-      start_time: isBurialWithWake
-        ? extras.inicio_velorio || extras.hora_sepultamento || null
-        : extras.hora_agendamento || null,
-      end_time: isBurialWithWake ? extras.fim_velorio || null : null,
-      service: isBurialWithWake ? "Velório + Sepultamento" : proc.label,
-      location: isBurialWithWake ? extras.local_sepultamento || null : extras.localizacao || null,
-      room: isBurialWithWake ? extras.sala_velorio || null : null,
-      burial_time: isBurialWithWake ? extras.hora_sepultamento || null : null,
-      burial_location: isBurialWithWake ? extras.local_sepultamento || null : null,
-      funeral_home: isBurialWithWake ? extras.funeraria || null : null,
-      pss_reference:
-        agendaType === "exumacao_pss"
-          ? extras.referencia_pps || extras.referencia_pss || null
-          : null,
-      status: "agendado",
-      notes: notes || null,
-    });
+    if (proc.key === "sepultamento") {
+      if (extras.tem_velorio === "SIM") {
+        rows.push({
+          user_id: userId,
+          attendance_id: attendanceId,
+          agenda_type: "velorio_sepultamento" as AgendaType,
+          event_date: eventDate,
+          start_time: extras.inicio_velorio || extras.hora_sepultamento || null,
+          end_time: extras.fim_velorio || null,
+          service: "Velório + Sepultamento",
+          location: extras.local_sepultamento || null,
+          room: extras.sala_velorio || null,
+          burial_time: extras.hora_sepultamento || null,
+          burial_location: extras.local_sepultamento || null,
+          funeral_home: extras.funeraria || null,
+          pss_reference: null,
+          status: "agendado",
+          notes: notes || null,
+        });
+      }
+      if (isSepultamentoPps) {
+        rows.push({
+          user_id: userId,
+          attendance_id: attendanceId,
+          agenda_type: "exumacao_pss" as AgendaType,
+          event_date: eventDate,
+          start_time: extras.hora_exumacao_pps || null,
+          end_time: null,
+          service: "Exumação PPS para Pronto Sepultamento",
+          location: extras.local_sepultamento || null,
+          room: null,
+          burial_time: extras.hora_sepultamento || null,
+          burial_location: extras.local_sepultamento || null,
+          funeral_home: extras.funeraria || null,
+          pss_reference: extras.referencia_pps || extras.referencia_pss || null,
+          status: "agendado",
+          notes: notes || null,
+        });
+      }
+    } else {
+      const agendaType = resolveAgendaType(proc.key, extras.tipo_agenda_exumacao);
+      if (!agendaType) return;
+      rows.push({
+        user_id: userId,
+        attendance_id: attendanceId,
+        agenda_type: agendaType,
+        event_date: eventDate,
+        start_time: extras.hora_agendamento || null,
+        end_time: null,
+        service: proc.label,
+        location: extras.localizacao || null,
+        room: null,
+        burial_time: null,
+        burial_location: null,
+        funeral_home: null,
+        pss_reference: null,
+        status: "agendado",
+        notes: notes || null,
+      });
+    }
+
+    if (!rows.length) return;
+    const { error } = await db.from("agenda_events").insert(rows);
     if (error) throw new Error(`Atendimento criado, mas a agenda não foi salva: ${error.message}`);
   }
 
@@ -169,9 +204,11 @@ function NewAttendance() {
     }
     const ppsErrors = validatePpsSchedule({
       processKey: proc.key,
+      subprocess,
       tipoAgendaExumacao: extras.tipo_agenda_exumacao,
+      jazigoPossuiGavetaDisponivel: extras.jazigo_possui_gaveta_disponivel,
       data_agendada: extras.data_agendada,
-      hora_agendamento: extras.hora_agendamento,
+      hora_agendamento: isSepultamentoPps ? extras.hora_exumacao_pps : extras.hora_agendamento,
     });
     if (ppsErrors.length) return toast.error(ppsErrors[0]);
 
@@ -216,7 +253,7 @@ function NewAttendance() {
         if (rowError) throw rowError;
       }
 
-      await createLinkedAgendaEvent(attendance.id, userId);
+      await createLinkedAgendaEvents(attendance.id, userId);
       navigate({ to: "/atendimento/$id", params: { id: attendance.id } });
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Erro ao criar atendimento"));
@@ -302,36 +339,6 @@ function NewAttendance() {
               )
             )}
 
-            {processKey === "exumacao" && subprocess === "jazigo" && (
-              <div className="space-y-2 rounded-md border bg-muted/25 p-3">
-                <Label>Há gaveta disponível no jazigo?</Label>
-                <p className="text-xs text-muted-foreground">
-                  Exumação em jazigo só vira PPS (Pronto Sepultamento) quando não há
-                  gaveta disponível para novo sepultamento.
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: "exumacao", label: "Sim — Agenda de Exumação" },
-                    { value: "exumacao_pss", label: "Não — Exumação PPS" },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => updateExtra("tipo_agenda_exumacao", option.value)}
-                      className={cn(
-                        "p-3 rounded-md border text-sm text-center transition-colors hover:border-primary",
-                        extras.tipo_agenda_exumacao === option.value &&
-                          "border-primary bg-accent",
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-
             <ExtraFields
               fields={
                 isSepultamento
@@ -388,27 +395,12 @@ function NewAttendance() {
                     });
                     if (errs.length) return toast.error(errs[0]);
                   }
-                  if (
-                    processKey === "exumacao" &&
-                    subprocess === "jazigo" &&
-                    !extras.tipo_agenda_exumacao
-                  ) {
-                    return toast.error(
-                      "Informe se há gaveta disponível no jazigo para escolher a agenda.",
-                    );
-                  }
                   setStep("upload");
                 }}
-                disabled={
-                  (!!proc.subprocessOptions && !subprocess) ||
-                  (processKey === "exumacao" &&
-                    subprocess === "jazigo" &&
-                    !extras.tipo_agenda_exumacao)
-                }
+                disabled={!!proc.subprocessOptions && !subprocess}
               >
                 Continuar <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
-
             </div>
           </CardContent>
         </Card>

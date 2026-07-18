@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAgendaSyncPatch,
+  burialRequiresPps,
   hasWake,
   resolveAgendaType,
   shouldCreateAgendaEvent,
@@ -36,6 +37,16 @@ describe("hasWake", () => {
   });
 });
 
+describe("burialRequiresPps", () => {
+  it("só exige PPS para jazigo sem gaveta", () => {
+    expect(burialRequiresPps("jazigo", { jazigo_possui_gaveta_disponivel: "nao" })).toBe(true);
+    expect(burialRequiresPps("jazigo", { jazigo_possui_gaveta_disponivel: "sim" })).toBe(false);
+    expect(burialRequiresPps("quadra_geral", { jazigo_possui_gaveta_disponivel: "nao" })).toBe(
+      false,
+    );
+  });
+});
+
 describe("shouldCreateAgendaEvent", () => {
   it("does not create when there is no scheduled date (test 4)", () => {
     expect(shouldCreateAgendaEvent("sepultamento", { tem_velorio: "SIM" })).toBe(false);
@@ -45,9 +56,7 @@ describe("shouldCreateAgendaEvent", () => {
         tem_velorio: "SIM",
       }),
     ).toBe(false);
-    expect(
-      shouldCreateAgendaEvent("exumacao", { hora_agendamento: "10:00" }),
-    ).toBe(false);
+    expect(shouldCreateAgendaEvent("exumacao", { hora_agendamento: "10:00" })).toBe(false);
   });
 
   it("does not create a wake event for a burial without wake", () => {
@@ -57,6 +66,16 @@ describe("shouldCreateAgendaEvent", () => {
         tem_velorio: "NAO",
       }),
     ).toBe(false);
+  });
+
+  it("creates a PPS event for burial in jazigo without free drawer", () => {
+    expect(
+      shouldCreateAgendaEvent("sepultamento", {
+        data_agendada: "2026-07-20",
+        tem_velorio: "NAO",
+        jazigo_possui_gaveta_disponivel: "nao",
+      }),
+    ).toBe(true);
   });
 
   it("creates a linked event for wake plus burial", () => {
@@ -69,15 +88,11 @@ describe("shouldCreateAgendaEvent", () => {
   });
 
   it("creates exhumation events when a date is provided", () => {
-    expect(
-      shouldCreateAgendaEvent("exumacao", { data_agendada: "2026-07-20" }),
-    ).toBe(true);
+    expect(shouldCreateAgendaEvent("exumacao", { data_agendada: "2026-07-20" })).toBe(true);
   });
 
   it("never creates for unrelated processes", () => {
-    expect(
-      shouldCreateAgendaEvent("translado", { data_agendada: "2026-07-20" }),
-    ).toBe(false);
+    expect(shouldCreateAgendaEvent("translado", { data_agendada: "2026-07-20" })).toBe(false);
   });
 });
 
