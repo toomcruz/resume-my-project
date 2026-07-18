@@ -18,6 +18,12 @@ import { detectDiscrepancies } from "../discrepancy-detector";
 import { applyManualCorrection, mergeProcess } from "../process-merger";
 import { logSafe, mask } from "../logger";
 import { computePending } from "../required-fields";
+import {
+  detectarTipoConcessao,
+  montarCadastroGscemi,
+  samePerson,
+  situacaoConcessionario,
+} from "../gscemi";
 import type { DocumentoFonte, Falecido } from "../types";
 
 // ---------- Normalizadores ----------
