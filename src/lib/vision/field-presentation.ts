@@ -158,6 +158,28 @@ export interface GroupFieldsResult {
  * Constrói a hierarquia de seções → grupos a partir das chaves conhecidas
  * no atendimento (união de campos extraídos + placeholders dos modelos).
  */
+/**
+ * Chaves preenchidas automaticamente pelo sistema (data atual e derivados).
+ * Nunca aparecem na revisão manual — o `buildTemplatePayload` injeta o
+ * valor calculado no fuso "America/Sao_Paulo" na geração do DOCX.
+ */
+const AUTO_FILLED_KEYS = new Set<string>(
+  [
+    "data_atual",
+    "data_atual_extenso",
+    "dataAtual",
+    "dataAtualExtenso",
+    "dataExt",
+    "dataAt",
+    "dataContr",
+    "dataRec",
+  ].map(normalizeKey),
+);
+
+export function isAutoFilledKey(key: string): boolean {
+  return AUTO_FILLED_KEYS.has(normalizeKey(key));
+}
+
 export function groupFields({ keys, fields }: GroupFieldsInput): GroupFieldsResult {
   // groupId → { def, keys[] }
   type Bucket = {
@@ -170,6 +192,7 @@ export function groupFields({ keys, fields }: GroupFieldsInput): GroupFieldsResu
 
   for (const key of keys) {
     const norm = normalizeKey(key);
+    if (AUTO_FILLED_KEYS.has(norm)) continue;
     const catalogDef = CATALOG_INDEX.get(norm);
     const manual = !catalogDef ? MANUAL_INDEX.get(norm) : undefined;
 
