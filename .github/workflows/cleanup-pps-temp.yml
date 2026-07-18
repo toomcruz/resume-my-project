@@ -1,0 +1,43 @@
+name: Cleanup PPS temporary files
+
+on:
+  push:
+    branches:
+      - fix/correct-sepultamento-jazigo-pps-flow
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove temporary implementation files
+        run: |
+          rm -f \
+            .github/workflows/apply-pps-patch.yml \
+            .github/workflows/apply-pps-review-fixes.yml \
+            .github/workflows/diagnose-pps-patch.yml \
+            .github/workflows/fix-pps-review-findings.yml \
+            .github/workflows/patch-correct-pps-triage.yml \
+            .github/workflows/test-patch-run.yml \
+            .github/workflows/cleanup-pps-temp.yml \
+            .patch-error \
+            .patch-output \
+            .trigger-apply-pps-patch \
+            .trigger-apply-review-fixes \
+            .trigger-fix-pps-review \
+            .trigger-patch-diagnostic \
+            .trigger-pps-triage \
+            .trigger-workflow-test \
+            .trigger-cleanup-pps-temp \
+            .workflow-ran
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: remove arquivos temporários da correção PPS"
+          git push
