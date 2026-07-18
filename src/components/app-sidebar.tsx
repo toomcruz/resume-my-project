@@ -85,7 +85,7 @@ export function AppSidebar() {
                       isActive={active}
                       tooltip={item.title}
                       size="lg"
-                      className="data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground hover:bg-sidebar-accent/60"
+                      className="[&>svg]:size-5 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground hover:bg-sidebar-accent/60"
                     >
                       <Link to={item.url} className="flex items-center gap-2.5">
                         <item.icon className="h-5 w-5 shrink-0" />
