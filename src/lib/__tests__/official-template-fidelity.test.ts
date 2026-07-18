@@ -45,9 +45,7 @@ describe("official template visual fidelity", () => {
       if (!item) throw new Error(`Official catalog item not found: ${id}`);
 
       const variants = getOfficialInstallVariants(item);
-      expect(new Set(variants.map((variant) => variant.file)), id).toEqual(
-        new Set([item.arquivo]),
-      );
+      expect(new Set(variants.map((variant) => variant.file)), id).toEqual(new Set([item.arquivo]));
     }
   });
 });
