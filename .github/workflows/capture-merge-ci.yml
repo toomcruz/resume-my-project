@@ -1,0 +1,67 @@
+name: Capture merge CI diagnostics
+
+on:
+  push:
+    branches:
+      - fix/restore-original-docx-layouts
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    if: ${{ !contains(github.event.head_commit.message, '[merge-diagnostics]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/restore-original-docx-layouts
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture checks from simulated PR merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git fetch origin refs/pull/1/merge:refs/remotes/origin/pr-1-merge
+          branch_sha="$(git rev-parse HEAD)"
+          git checkout refs/remotes/origin/pr-1-merge
+
+          mapfile -d '' changed_files < <(git diff --name-only --diff-filter=ACMRT -z origin/main...HEAD)
+          prettier_files=()
+          eslint_files=()
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              *.ts|*.tsx|*.js|*.jsx|*.json|*.yml|*.yaml|*.css|*.scss|*.md|*.html)
+                prettier_files+=("$file")
+                ;;
+            esac
+            case "$file" in
+              *.ts|*.tsx|*.js|*.jsx)
+                eslint_files+=("$file")
+                ;;
+            esac
+          done
+
+          bunx prettier --check "${prettier_files[@]}" > /tmp/merge-prettier-output.txt 2>&1 || true
+          bunx eslint "${eslint_files[@]}" > /tmp/merge-eslint-output.txt 2>&1 || true
+          printf '%s\n' "${prettier_files[@]}" > /tmp/merge-prettier-files.txt
+
+          git checkout "$branch_sha"
+          cp /tmp/merge-*-output.txt /tmp/merge-prettier-files.txt .
+
+      - name: Commit diagnostics
+        run: |
+          rm .github/workflows/capture-merge-ci.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: registra diagnóstico do merge do PR [merge-diagnostics]"
+          git push origin HEAD:fix/restore-original-docx-layouts
