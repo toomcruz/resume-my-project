@@ -143,14 +143,14 @@ export const classifyAndExtractProcess = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
 
+    const dadosJson = JSON.parse(JSON.stringify(processo)) as never;
     let processId = existing?.id as string | undefined;
     if (processId) {
       const { error } = await supabase
         .from("funeral_processes")
-        .update({ tipo_processo: data.tipoProcesso, dados: processo as unknown as Record<string, unknown>, status: "em_analise" })
+        .update({ tipo_processo: data.tipoProcesso, dados: dadosJson, status: "em_analise" })
         .eq("id", processId);
       if (error) throw new Error(error.message);
-      // Limpa documentos anteriores para reinserir consistente
       await supabase.from("funeral_documents").delete().eq("process_id", processId);
       await supabase.from("funeral_discrepancies").delete().eq("process_id", processId);
     } else {
@@ -161,7 +161,7 @@ export const classifyAndExtractProcess = createServerFn({ method: "POST" })
           attendance_id: data.attendanceId,
           tipo_processo: data.tipoProcesso,
           status: "em_analise",
-          dados: processo as unknown as Record<string, unknown>,
+          dados: dadosJson,
         })
         .select("id")
         .single();
@@ -169,14 +169,13 @@ export const classifyAndExtractProcess = createServerFn({ method: "POST" })
       processId = inserted.id;
     }
 
-    // 6) Persiste documentos e divergências
     if (documentos.length) {
       const rows = documentos.map((d) => ({
         process_id: processId!,
         attendance_image_id: d.attendanceImageId ?? null,
         tipo_documento: d.tipoDocumento,
         classificacao_confianca: d.classificacaoConfianca,
-        dados_extraidos: d.dadosExtraidos,
+        dados_extraidos: JSON.parse(JSON.stringify(d.dadosExtraidos)) as never,
       }));
       await supabase.from("funeral_documents").insert(rows);
     }
