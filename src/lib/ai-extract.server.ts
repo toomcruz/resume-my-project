@@ -6,6 +6,8 @@ export interface ExtractParams {
   fields: string[]; // placeholder names to fill
   processLabel: string;
   contextHints?: string;
+  model?: string; // default google/gemini-2.5-flash
+  timeoutMs?: number; // default 20000
 }
 
 export async function extractFromImages(params: ExtractParams): Promise<Record<string, string>> {
@@ -33,21 +35,35 @@ ${params.contextHints ? `\nContexto adicional: ${params.contextHints}` : ""}`;
     ...params.imageDataUrls.map((url) => ({ type: "image_url", image_url: { url } })),
   ];
 
-  const res = await fetch(GATEWAY_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Lovable-API-Key": key,
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutMs = params.timeoutMs ?? 20000;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Lovable-API-Key": key,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: params.model ?? "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    if ((e as Error)?.name === "AbortError") {
+      throw new Error("A IA demorou demais para responder. Tente novamente.");
+    }
+    throw e;
+  }
+  clearTimeout(timer);
 
   if (!res.ok) {
     const body = await res.text();
