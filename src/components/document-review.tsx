@@ -210,88 +210,93 @@ export function DocumentReview({
   const displayedPending = showAllPending ? pendingGroups : pendingGroups.slice(0, 5);
 
   return (
-    <div ref={containerRef} className="grid gap-4 lg:grid-cols-[280px,1fr]">
-      <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Revisão do documento</CardDescription>
-            <CardTitle className="text-2xl">
+    <div ref={containerRef} className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-2 shadow-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-3 px-2">
+          <div
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+              counts.pendentes === 0
+                ? "bg-emerald-500/10 text-emerald-600"
+                : counts.criticas > 0 || counts.divergencias > 0
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-amber-500/10 text-amber-600",
+            )}
+          >
+            {counts.pendentes === 0 ? (
+              <Check className="h-5 w-5" />
+            ) : (
+              <AlertTriangle className="h-5 w-5" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">
               {counts.pendentes === 0
                 ? "Tudo em ordem"
-                : `${counts.pendentes} pendência${counts.pendentes > 1 ? "s" : ""}`}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="space-y-1.5">
-              <SummaryLine color="destructive" label="Críticas" value={counts.criticas} />
-              <SummaryLine color="destructive" label="Divergências" value={counts.divergencias} />
-              <SummaryLine color="amber" label="Conferir" value={counts.conferir} />
-              <SummaryLine color="emerald" label="Resolvidas" value={counts.resolvidas} />
-            </div>
-            <div className="pt-2">
-              <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-                <span>Progresso</span>
-                <span>
-                  {counts.resolvidas} de {counts.total}
-                </span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full bg-emerald-500 transition-all"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                : `${counts.pendentes} pendência${counts.pendentes > 1 ? "s" : ""} para revisar`}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {counts.resolvidas} de {counts.total} campos conferidos
+            </p>
+          </div>
+        </div>
+
+        <div className="flex w-full items-center gap-3 px-2 sm:w-auto">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted sm:w-32">
+            <div
+              className="h-full bg-emerald-500 transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="text-xs font-medium text-muted-foreground">{progress}%</span>
+        </div>
 
         {pendingGroups.length > 0 && (
-          <Card>
-            <button
-              type="button"
-              onClick={() => setPendingOpen((open) => !open)}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-              aria-expanded={pendingOpen}
-            >
-              <span className="text-sm font-medium">
-                {pendingGroups.length} pendência{pendingGroups.length > 1 ? "s" : ""} — visualizar
-              </span>
-              <ChevronDown
-                className={cn("h-4 w-4 transition-transform", pendingOpen && "rotate-180")}
-              />
-            </button>
-            {pendingOpen && (
-              <CardContent className="max-h-[320px] space-y-1 overflow-auto border-t pt-2">
-                {displayedPending.map((group) => {
-                  const status = groupWorstStatus(group, statuses);
-                  return (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => scrollToGroup(group)}
-                      className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-muted"
-                    >
-                      <span className="truncate">{group.label}</span>
-                      <StatusPill status={status} compact />
-                    </button>
-                  );
-                })}
-                {pendingGroups.length > 5 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setShowAllPending((show) => !show)}
-                  >
-                    {showAllPending ? "Mostrar menos" : `Ver todas (${pendingGroups.length})`}
-                  </Button>
-                )}
-              </CardContent>
-            )}
-          </Card>
+          <button
+            type="button"
+            onClick={() => setPendingOpen((open) => !open)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted"
+            aria-expanded={pendingOpen}
+          >
+            Visualizar
+            <ChevronDown
+              className={cn("h-4 w-4 transition-transform", pendingOpen && "rotate-180")}
+            />
+          </button>
         )}
-      </aside>
+      </div>
+
+      {pendingOpen && pendingGroups.length > 0 && (
+        <Card>
+          <CardContent className="max-h-[260px] space-y-1 overflow-auto pt-4">
+            {displayedPending.map((group) => {
+              const status = groupWorstStatus(group, statuses);
+              return (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => scrollToGroup(group)}
+                  className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-muted"
+                >
+                  <span className="truncate">{group.label}</span>
+                  <StatusPill status={status} compact />
+                </button>
+              );
+            })}
+            {pendingGroups.length > 5 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => setShowAllPending((show) => !show)}
+              >
+                {showAllPending ? "Mostrar menos" : `Ver todas (${pendingGroups.length})`}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-4">
         {visibleSections.map((section) => (
@@ -345,31 +350,6 @@ export function DocumentReview({
   );
 }
 
-function SummaryLine({
-  color,
-  label,
-  value,
-}: {
-  color: "destructive" | "amber" | "emerald";
-  label: string;
-  value: number;
-}) {
-  const dot =
-    color === "destructive"
-      ? "bg-destructive"
-      : color === "amber"
-        ? "bg-amber-500"
-        : "bg-emerald-500";
-  return (
-    <div className="flex items-center justify-between">
-      <span className="inline-flex items-center gap-2 text-muted-foreground">
-        <span className={cn("h-2 w-2 rounded-full", dot)} />
-        {label}
-      </span>
-      <span className="font-medium">{value}</span>
-    </div>
-  );
-}
 
 function StatusPill({ status, compact }: { status: GroupStatus; compact?: boolean }) {
   if (status === "opcional_vazio") return null;
