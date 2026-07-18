@@ -22,6 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: supabase-external
+    env:
+      PGHOST: aws-1-us-east-2.pooler.supabase.com
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres.geprepccebxpdbhokuyl
+      PGSSLMODE: require
+      PGPASSWORD: ${{ secrets.SUPABASE_EXTERNAL_DB_PASSWORD }}
 
     steps:
       - name: Baixar repositório
@@ -32,9 +39,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Validar arquivo e conexão
-        env:
-          SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
+      - name: Validar arquivo e senha
         run: |
           set -euo pipefail
 
@@ -42,59 +47,26 @@ jobs:
           grep -q '^BEGIN;' supabase/migration_supabase_externo.sql
           grep -q '^COMMIT;' supabase/migration_supabase_externo.sql
 
-          if [[ -z "${SUPABASE_EXTERNAL_DB_URL:-}" ]]; then
-            echo "::error::O secret SUPABASE_EXTERNAL_DB_URL não foi configurado no ambiente supabase-external."
-            exit 1
-          fi
-
-          case "$SUPABASE_EXTERNAL_DB_URL" in
-            postgres://*|postgresql://*)
-              ;;
-            *)
-              echo "::error::SUPABASE_EXTERNAL_DB_URL não é uma connection string PostgreSQL válida. Não use a URL https://<project-ref>.supabase.co."
-              exit 1
-              ;;
-          esac
-
-          if [[ "$SUPABASE_EXTERNAL_DB_URL" == *"@db.geprepccebxpdbhokuyl.supabase.co:5432/"* ]]; then
-            echo "::error::Foi usada a conexão direta db.geprepccebxpdbhokuyl.supabase.co, que depende de IPv6. GitHub Actions não alcança esse endpoint. No Supabase, abra Connect → Session pooler e copie a URI do Shared Pooler na porta 5432."
-            exit 1
-          fi
-
-          if [[ "$SUPABASE_EXTERNAL_DB_URL" != *".pooler.supabase.com:5432/"* ]]; then
-            echo "::error::Use obrigatoriamente a URI Session pooler do Supabase. Ela deve conter .pooler.supabase.com:5432/ e o usuário postgres.geprepccebxpdbhokuyl."
-            exit 1
-          fi
-
-          if [[ "$SUPABASE_EXTERNAL_DB_URL" != *"postgres.geprepccebxpdbhokuyl:"* ]]; then
-            echo "::error::A URI não parece pertencer ao projeto geprepccebxpdbhokuyl. Copie novamente a Session pooler em Connect."
+          if [[ -z "${PGPASSWORD:-}" ]]; then
+            echo "::error::O secret SUPABASE_EXTERNAL_DB_PASSWORD não foi configurado no ambiente supabase-external. Cole apenas a senha do banco, sem URI, usuário ou aspas."
             exit 1
           fi
 
       - name: Testar conexão com o Supabase externo
-        env:
-          SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
-          PGSSLMODE: require
         run: |
-          psql --dbname="$SUPABASE_EXTERNAL_DB_URL" \
+          psql --no-password \
             --set=ON_ERROR_STOP=1 \
             --command="select current_database(), current_user;"
 
       - name: Aplicar schema no Supabase externo
-        env:
-          SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
-          PGSSLMODE: require
         run: |
-          psql --dbname="$SUPABASE_EXTERNAL_DB_URL" \
+          psql --no-password \
             --set=ON_ERROR_STOP=1 \
             --file=supabase/migration_supabase_externo.sql
 
       - name: Verificar estrutura criada
-        env:
-          SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
-          PGSSLMODE: require
         run: |
-          TABLE_COUNT=$(psql --dbname="$SUPABASE_EXTERNAL_DB_URL" --tuples-only --no-align --set=ON_ERROR_STOP=1 <<'SQL'
+          TABLE_COUNT=$(psql --no-password --tuples-only --no-align --set=ON_ERROR_STOP=1 <<'SQL'
           SELECT count(*)
           FROM information_schema.tables
           WHERE table_schema = 'public'
@@ -108,7 +80,7 @@ jobs:
           SQL
           )
 
-          BUCKET_COUNT=$(psql --dbname="$SUPABASE_EXTERNAL_DB_URL" --tuples-only --no-align --set=ON_ERROR_STOP=1 <<'SQL'
+          BUCKET_COUNT=$(psql --no-password --tuples-only --no-align --set=ON_ERROR_STOP=1 <<'SQL'
           SELECT count(*)
           FROM storage.buckets
           WHERE public = false
