@@ -368,22 +368,85 @@ function AttendanceDetail() {
         }
       }
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Falha na extração"));
+      const message = getErrorMessage(error, "Falha na extração");
+      toast.error(message);
+      // Garante que o status nunca fique preso em "extracting" após
+      // qualquer falha (Gemini, geração de documento, storage…).
+      try {
+        await supabase.from("attendances").update({ status: "error" }).eq("id", id);
+        await qc.invalidateQueries({ queryKey: ["attendance", id] });
+      } catch (persistError) {
+        console.error("[atendimento] falha ao registrar status=error:", persistError);
+      }
     } finally {
       setExtracting(false);
     }
   }
 
+  // Proteção em 2 camadas contra disparos duplicados da extração:
+  //   1) `autoExtractRef` — evita re-disparo durante a mesma montagem.
+  //   2) `sessionStorage` — evita re-disparo entre remounts/tabs enquanto
+  //      já existe uma extração ativa para o mesmo atendimento.
+  const autoExtractRef = useRef(false);
   useEffect(() => {
-    if (
-      att?.status === "extracting" &&
-      !Object.keys(att.extracted_data ?? {}).length &&
-      !extracting
-    ) {
-      triggerExtract(true);
+    if (autoExtractRef.current) return;
+    const status = att?.status;
+    const hasData = Object.keys(att?.extracted_data ?? {}).length > 0;
+    if (extractTimedOut) return;
+    const lockKey = `attendance:extract-lock:${id}`;
+    let lockTimestamp: number | null = null;
+    try {
+      const raw = sessionStorage.getItem(lockKey);
+      if (raw) {
+        const parsed = Number(raw);
+        if (Number.isFinite(parsed)) lockTimestamp = parsed;
+      }
+    } catch {
+      // sessionStorage indisponível — segue apenas com o guard local.
     }
+    const now = Date.now();
+    const canStart = canStartAutoExtract({
+      status,
+      hasExtractedData: hasData,
+      extracting,
+      lockTimestamp,
+      now,
+    });
+    if (!canStart) return;
+    try {
+      sessionStorage.setItem(lockKey, String(now));
+    } catch {
+      // ignora
+    }
+    autoExtractRef.current = true;
+    triggerExtract(true).finally(() => {
+      try {
+        const stored = sessionStorage.getItem(lockKey);
+        if (stored && Number(stored) === now) sessionStorage.removeItem(lockKey);
+      } catch {
+        // ignora
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [att?.status]);
+  }, [att?.status, att?.extracted_data, id, extractTimedOut]);
+
+  // Garante liberação do lock persistente ao desmontar caso a extração
+  // ainda estivesse em andamento (evita "lock preso" após 5 min de TTL).
+  useEffect(() => {
+    const lockKey = `attendance:extract-lock:${id}`;
+    return () => {
+      try {
+        const raw = sessionStorage.getItem(lockKey);
+        if (!raw) return;
+        const ts = Number(raw);
+        if (Number.isFinite(ts) && Date.now() - ts >= EXTRACT_LOCK_TTL_MS) {
+          sessionStorage.removeItem(lockKey);
+        }
+      } catch {
+        // ignora
+      }
+    };
+  }, [id]);
 
   async function saveFields() {
     setSaving(true);
