@@ -1,0 +1,53 @@
+name: Diagnose sepultamento PR
+
+on:
+  push:
+    branches:
+      - fix/increase-sepultamento-small-fonts
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Capture diagnostics
+        run: |
+          mkdir -p .ci-diagnostics
+          base_sha="03cab874d4b1cee3baacab1fc34bd9ee4d9cb887"
+          merge_sha="0fcefa53eb4772f381a9c1d650e42b98b16a5960"
+          git fetch origin "$merge_sha" || true
+          git diff --name-only --diff-filter=ACMRT "$base_sha"..."$merge_sha" > .ci-diagnostics/changed-files.txt
+
+          mapfile -t format_files < <(grep -E '\.(ts|tsx|js|jsx|json|yml|yaml|css|scss|md|html)$' .ci-diagnostics/changed-files.txt || true)
+          mapfile -t lint_files < <(grep -E '\.(ts|tsx|js|jsx)$' .ci-diagnostics/changed-files.txt || true)
+
+          if [ "${#format_files[@]}" -gt 0 ]; then
+            bunx prettier --check "${format_files[@]}" > .ci-diagnostics/prettier.txt 2>&1 || true
+          fi
+          if [ "${#lint_files[@]}" -gt 0 ]; then
+            bunx eslint "${lint_files[@]}" > .ci-diagnostics/eslint.txt 2>&1 || true
+          fi
+
+      - name: Commit diagnostics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .ci-diagnostics
+          git commit -m "ci: captura diagnóstico do PR de fonte"
+          git push
