@@ -302,6 +302,52 @@ export const generateDocument = createServerFn({ method: "POST" })
       data_atual: autoDates.dataAtual,
       data_atual_extenso: autoDates.dataAtualExtenso,
     };
+
+    // Puxa campos operacionais da agenda (quadra/rua, terreno, gaveta e demais
+    // dados preenchidos no dia) para o payload do documento, dando precedência
+    // aos valores da agenda quando o campo do atendimento estiver vazio.
+    const { data: linkedEvent } = await supabase
+      .from("agenda_events")
+      .select(
+        "quadra_rua, terreno, gaveta, burial_location, burial_time, room, start_time, end_time, funeral_home, vehicle_plate, driver_name, arrival_time, destination",
+      )
+      .eq("attendance_id", data.attendanceId)
+      .maybeSingle();
+
+    if (linkedEvent) {
+      const agendaMap: Record<string, string | null> = {
+        quadra_rua: linkedEvent.quadra_rua,
+        quadraRua: linkedEvent.quadra_rua,
+        rua: linkedEvent.quadra_rua,
+        terreno: linkedEvent.terreno,
+        sepultura: linkedEvent.terreno,
+        numero_sepultura: linkedEvent.terreno,
+        gaveta: linkedEvent.gaveta,
+        numero_gaveta: linkedEvent.gaveta,
+        local_sepultamento: linkedEvent.burial_location,
+        localSepultamento: linkedEvent.burial_location,
+        hora_sepultamento: linkedEvent.burial_time,
+        horaSep: linkedEvent.burial_time,
+        sala_velorio: linkedEvent.room,
+        salaVelorio: linkedEvent.room,
+        inicio_velorio: linkedEvent.start_time,
+        fim_velorio: linkedEvent.end_time,
+        funeraria: linkedEvent.funeral_home,
+        placa_veiculo: linkedEvent.vehicle_plate,
+        nome_motorista: linkedEvent.driver_name,
+        hora_chegada: linkedEvent.arrival_time,
+        destino: linkedEvent.destination,
+      };
+      const withAgenda: Record<string, string> = { ...merged };
+      for (const [key, value] of Object.entries(agendaMap)) {
+        const v = String(value ?? "").trim();
+        if (!v) continue;
+        const current = String(withAgenda[key] ?? "").trim();
+        if (!current) withAgenda[key] = v;
+      }
+      merged = withAgenda;
+    }
+
     const values = applyOfficialTemplateAliases(merged, template.storage_path);
     const filled = fillDocx(buffer, values);
     // Wrap Uint8Array in a Blob so supabase-js uploads raw binary bytes.
