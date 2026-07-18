@@ -222,7 +222,6 @@ export function mergeProcess(docs: DocumentoFonte[], opts: MergeOptions = {}): P
 
   // GSCEMI: consolida cadastro do concessionário e relaciona papéis
   {
-    const { montarCadastroGscemi } = require("./gscemi") as typeof import("./gscemi");
     const declarante = processo.responsavelPrincipal
       ? {
           nome: processo.responsavelPrincipal.nome?.normalized,
