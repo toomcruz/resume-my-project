@@ -288,7 +288,7 @@ function NewAttendance() {
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => setSubprocess(option.value)}
+                        onClick={() => chooseExumacaoSubprocess(option.value)}
                         className={cn(
                           "p-3 rounded-md border text-sm text-center transition-colors hover:border-primary",
                           subprocess === option.value && "border-primary bg-accent",
@@ -301,6 +301,36 @@ function NewAttendance() {
                 </div>
               )
             )}
+
+            {processKey === "exumacao" && subprocess === "jazigo" && (
+              <div className="space-y-2 rounded-md border bg-muted/25 p-3">
+                <Label>Há gaveta disponível no jazigo?</Label>
+                <p className="text-xs text-muted-foreground">
+                  Exumação em jazigo só vira PPS (Pronto Sepultamento) quando não há
+                  gaveta disponível para novo sepultamento.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "exumacao", label: "Sim — Agenda de Exumação" },
+                    { value: "exumacao_pss", label: "Não — Exumação PPS" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => updateExtra("tipo_agenda_exumacao", option.value)}
+                      className={cn(
+                        "p-3 rounded-md border text-sm text-center transition-colors hover:border-primary",
+                        extras.tipo_agenda_exumacao === option.value &&
+                          "border-primary bg-accent",
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
             <ExtraFields
               fields={
