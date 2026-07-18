@@ -188,7 +188,7 @@ export const classifyAndExtractProcess = createServerFn({ method: "POST" })
           processLabel: data.tipoProcesso,
           timeoutMs: 20000,
           contextHints:
-            "Documento pode ser Declaração de Óbito, Nota de Contratação Funeral ou Cadastro de Concessionário GSCEMI. O cadastro GSCEMI pode aparecer em várias abas (Manutenção, Endereço, Complementares) — extraia todos os campos visíveis em cada aba. Nunca invente.",
+            "Documento pode ser Declaração de Óbito, Nota de Contratação Funeral, Cadastro de Concessionário GSCEMI (várias abas: Manutenção/Endereço/Complementares), Cadastro do Falecido / Sepultamento no GSCEMI (tela com Tipo de Sepultamento, Nº Sepult, PRO-AIM, Cartório/Livro/Página, Termo/Nº Controle, Tem Lápide) ou Tela de Declarantes GSCEMI (DECLARANTE DO ÓBITO + DECLARANTE DO PAGAMENTO). Preserve a origem exata de cada campo. Nunca invente. Para a tela de declarantes, prefixe os campos com _obito ou _pagamento conforme a seção.",
         });
       } catch (err) {
         logSafe("extração falhou", { imageId: item.imageId, error: (err as Error).message });
