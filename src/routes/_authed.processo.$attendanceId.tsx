@@ -110,6 +110,8 @@ function ProcessoPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const processo = (data as { dados?: unknown } | null)?.dados as ProcessoFunerario | undefined;
+
   const processo = (data as { dados?: ProcessoFunerario } | null)?.dados;
 
   const onSave = (path: string, value: string) => saveMut.mutate({ path, value });
