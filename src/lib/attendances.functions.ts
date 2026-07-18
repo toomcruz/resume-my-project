@@ -296,6 +296,12 @@ export const generateDocument = createServerFn({ method: "POST" })
       });
       merged = { ...extracted, ...overrides };
     }
+    const autoDates = computeSaoPauloDates();
+    merged = {
+      ...merged,
+      data_atual: autoDates.dataAtual,
+      data_atual_extenso: autoDates.dataAtualExtenso,
+    };
     const values = applyOfficialTemplateAliases(merged, template.storage_path);
     const filled = fillDocx(buffer, values);
     // Wrap Uint8Array in a Blob so supabase-js uploads raw binary bytes.
