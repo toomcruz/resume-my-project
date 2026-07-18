@@ -56,10 +56,12 @@ export function classifyDocument(input: ClassificationInput): ClassificationResu
   const doScore = scoreKeywords(text, DO_KEYWORDS);
   const notaScore = scoreKeywords(text, NOTA_KEYWORDS);
 
-  const ranked: Array<{ tipo: TipoDocumento; confianca: number }> = [
-    { tipo: "DECLARACAO_DE_OBITO", confianca: doScore },
-    { tipo: "NOTA_DE_CONTRATACAO_FUNERAL", confianca: notaScore },
-  ].sort((a, b) => b.confianca - a.confianca);
+  const ranked: Array<{ tipo: TipoDocumento; confianca: number }> = (
+    [
+      { tipo: "DECLARACAO_DE_OBITO" as TipoDocumento, confianca: doScore },
+      { tipo: "NOTA_DE_CONTRATACAO_FUNERAL" as TipoDocumento, confianca: notaScore },
+    ]
+  ).sort((a, b) => b.confianca - a.confianca);
 
   const top = ranked[0];
   if (top.confianca < THRESHOLD) {

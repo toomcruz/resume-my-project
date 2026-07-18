@@ -30,14 +30,13 @@ export function sameDeceased(a: Falecido, b: Falecido): boolean {
 
 /** Funde dois falecidos preservando valores preexistentes (não sobrescreve). */
 export function mergeDeceased(base: Falecido, incoming: Falecido): Falecido {
-  const out: Falecido = { ...base };
-  for (const key of Object.keys(incoming) as Array<keyof Falecido>) {
+  const out = { ...base } as unknown as Record<string, unknown>;
+  const src = incoming as unknown as Record<string, unknown>;
+  for (const key of Object.keys(src)) {
     if (key === "papel" || key === "id") continue;
-    const current = out[key];
-    const next = incoming[key];
-    if (current === undefined || current === null) {
-      (out as Record<string, unknown>)[key as string] = next as unknown;
+    if (out[key] === undefined || out[key] === null) {
+      out[key] = src[key];
     }
   }
-  return out;
+  return out as unknown as Falecido;
 }
