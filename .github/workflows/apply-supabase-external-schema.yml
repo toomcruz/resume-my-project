@@ -32,21 +32,45 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Validar arquivo e segredo
+      - name: Validar arquivo e conexão
         env:
           SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
         run: |
+          set -euo pipefail
+
           test -f supabase/migration_supabase_externo.sql
-          test -n "$SUPABASE_EXTERNAL_DB_URL"
           grep -q '^BEGIN;' supabase/migration_supabase_externo.sql
           grep -q '^COMMIT;' supabase/migration_supabase_externo.sql
+
+          if [[ -z "${SUPABASE_EXTERNAL_DB_URL:-}" ]]; then
+            echo "::error::O secret SUPABASE_EXTERNAL_DB_URL não foi configurado no ambiente supabase-external."
+            exit 1
+          fi
+
+          case "$SUPABASE_EXTERNAL_DB_URL" in
+            postgres://*|postgresql://*)
+              ;;
+            *)
+              echo "::error::SUPABASE_EXTERNAL_DB_URL não é uma connection string PostgreSQL válida. Não use a URL https://<project-ref>.supabase.co. No Supabase, abra Connect → Session pooler e copie a URI que começa com postgresql:// ou postgres://."
+              exit 1
+              ;;
+          esac
+
+      - name: Testar conexão com o Supabase externo
+        env:
+          SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
+          PGSSLMODE: require
+        run: |
+          psql --dbname="$SUPABASE_EXTERNAL_DB_URL" \
+            --set=ON_ERROR_STOP=1 \
+            --command="select current_database(), current_user;"
 
       - name: Aplicar schema no Supabase externo
         env:
           SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
           PGSSLMODE: require
         run: |
-          psql "$SUPABASE_EXTERNAL_DB_URL" \
+          psql --dbname="$SUPABASE_EXTERNAL_DB_URL" \
             --set=ON_ERROR_STOP=1 \
             --file=supabase/migration_supabase_externo.sql
 
@@ -55,8 +79,8 @@ jobs:
           SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
           PGSSLMODE: require
         run: |
-          psql "$SUPABASE_EXTERNAL_DB_URL" --set=ON_ERROR_STOP=1 <<'SQL'
-          SELECT count(*) AS public_tables
+          TABLE_COUNT=$(psql --dbname="$SUPABASE_EXTERNAL_DB_URL" --tuples-only --no-align --set=ON_ERROR_STOP=1 <<'SQL'
+          SELECT count(*)
           FROM information_schema.tables
           WHERE table_schema = 'public'
             AND table_name IN (
@@ -66,9 +90,19 @@ jobs:
               'funeral_discrepancies', 'funeral_field_feedback', 'funeral_audit_log',
               'extraction_locks'
             );
+          SQL
+          )
 
-          SELECT count(*) AS private_buckets
+          BUCKET_COUNT=$(psql --dbname="$SUPABASE_EXTERNAL_DB_URL" --tuples-only --no-align --set=ON_ERROR_STOP=1 <<'SQL'
+          SELECT count(*)
           FROM storage.buckets
           WHERE public = false
             AND id IN ('attendance-images', 'document-templates', 'generated-documents');
           SQL
+          )
+
+          echo "Tabelas encontradas: $TABLE_COUNT/14"
+          echo "Buckets privados encontrados: $BUCKET_COUNT/3"
+
+          test "$TABLE_COUNT" = "14"
+          test "$BUCKET_COUNT" = "3"
