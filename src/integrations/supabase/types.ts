@@ -317,6 +317,279 @@ export type Database = {
           },
         ]
       }
+      funeral_audit_log: {
+        Row: {
+          acao: string
+          created_at: string
+          id: string
+          payload: Json
+          process_id: string | null
+          user_id: string
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          process_id?: string | null
+          user_id: string
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          process_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funeral_audit_log_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "funeral_processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funeral_deceased: {
+        Row: {
+          created_at: string
+          dados: Json
+          id: string
+          papel: string
+          process_id: string
+        }
+        Insert: {
+          created_at?: string
+          dados?: Json
+          id?: string
+          papel?: string
+          process_id: string
+        }
+        Update: {
+          created_at?: string
+          dados?: Json
+          id?: string
+          papel?: string
+          process_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funeral_deceased_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "funeral_processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funeral_discrepancies: {
+        Row: {
+          campo: string
+          confianca: number
+          created_at: string
+          doc_a_id: string | null
+          doc_b_id: string | null
+          id: string
+          process_id: string
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: string
+          sugestao: string | null
+          valor_a: string | null
+          valor_b: string | null
+          valor_final: string | null
+        }
+        Insert: {
+          campo: string
+          confianca?: number
+          created_at?: string
+          doc_a_id?: string | null
+          doc_b_id?: string | null
+          id?: string
+          process_id: string
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: string
+          sugestao?: string | null
+          valor_a?: string | null
+          valor_b?: string | null
+          valor_final?: string | null
+        }
+        Update: {
+          campo?: string
+          confianca?: number
+          created_at?: string
+          doc_a_id?: string | null
+          doc_b_id?: string | null
+          id?: string
+          process_id?: string
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: string
+          sugestao?: string | null
+          valor_a?: string | null
+          valor_b?: string | null
+          valor_final?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funeral_discrepancies_doc_a_id_fkey"
+            columns: ["doc_a_id"]
+            isOneToOne: false
+            referencedRelation: "funeral_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funeral_discrepancies_doc_b_id_fkey"
+            columns: ["doc_b_id"]
+            isOneToOne: false
+            referencedRelation: "funeral_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funeral_discrepancies_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "funeral_processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funeral_documents: {
+        Row: {
+          attendance_image_id: string | null
+          classificacao_confianca: number
+          created_at: string
+          dados_extraidos: Json
+          id: string
+          process_id: string
+          tipo_documento: string
+        }
+        Insert: {
+          attendance_image_id?: string | null
+          classificacao_confianca?: number
+          created_at?: string
+          dados_extraidos?: Json
+          id?: string
+          process_id: string
+          tipo_documento: string
+        }
+        Update: {
+          attendance_image_id?: string | null
+          classificacao_confianca?: number
+          created_at?: string
+          dados_extraidos?: Json
+          id?: string
+          process_id?: string
+          tipo_documento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funeral_documents_attendance_image_id_fkey"
+            columns: ["attendance_image_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funeral_documents_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "funeral_processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funeral_field_feedback: {
+        Row: {
+          campo: string
+          coordenadas: Json | null
+          created_at: string
+          id: string
+          modelo: string | null
+          process_id: string | null
+          tipo_documento: string
+          user_id: string
+          valor_correto: string
+          valor_extraido: string | null
+        }
+        Insert: {
+          campo: string
+          coordenadas?: Json | null
+          created_at?: string
+          id?: string
+          modelo?: string | null
+          process_id?: string | null
+          tipo_documento: string
+          user_id: string
+          valor_correto: string
+          valor_extraido?: string | null
+        }
+        Update: {
+          campo?: string
+          coordenadas?: Json | null
+          created_at?: string
+          id?: string
+          modelo?: string | null
+          process_id?: string | null
+          tipo_documento?: string
+          user_id?: string
+          valor_correto?: string
+          valor_extraido?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funeral_field_feedback_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "funeral_processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      funeral_processes: {
+        Row: {
+          attendance_id: string | null
+          created_at: string
+          dados: Json
+          id: string
+          status: string
+          tipo_processo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attendance_id?: string | null
+          created_at?: string
+          dados?: Json
+          id?: string
+          status?: string
+          tipo_processo?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attendance_id?: string | null
+          created_at?: string
+          dados?: Json
+          id?: string
+          status?: string
+          tipo_processo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funeral_processes_attendance_id_fkey"
+            columns: ["attendance_id"]
+            isOneToOne: false
+            referencedRelation: "attendances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generated_documents: {
         Row: {
           attendance_id: string
