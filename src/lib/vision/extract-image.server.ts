@@ -199,16 +199,27 @@ export async function extractSingleImage(
   params: ExtractImageInput,
   deps: CallDeps = {},
 ): Promise<ExtractImageOutcome> {
-  const first = await callOnce(params, 0, deps);
+  const first = await callOnce(params, 0, deps, MODEL_PRIMARY);
   if (first.ok) return first;
 
-  // Retry único apenas para erros de schema/JSON, não para HTTP.
-  const retryable =
+  // Retry por schema/JSON no mesmo modelo.
+  const schemaRetryable =
     /JSON|schema|resposta vazia|resposta não é objeto|não é JSON válido|JSON vazio/i.test(
       first.error,
     );
-  if (!retryable) return first;
+  if (schemaRetryable) {
+    const second = await callOnce(params, 1, deps, MODEL_PRIMARY);
+    if (second.ok) return second;
+  }
 
-  const second = await callOnce(params, 1, deps);
-  return second;
+  // Fallback para modelo Flash quando o Pro falha por HTTP transitório
+  // (5xx, timeout, indisponibilidade) — mantém a extração funcional.
+  const httpFallback = /HTTP 5\d\d|falha de rede|timeout|indisponí|unavailable/i.test(first.error);
+  if (httpFallback) {
+    const fallback = await callOnce(params, 0, deps, MODEL_FALLBACK);
+    return fallback;
+  }
+
+  return first;
+}
 }
