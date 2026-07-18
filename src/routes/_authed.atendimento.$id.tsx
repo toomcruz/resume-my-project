@@ -1,7 +1,14 @@
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import {
+  canStartAutoExtract,
+  computeExtractedSignature,
+  decidePollInterval,
+  EXTRACT_LOCK_TTL_MS,
+  mergeFieldsPreservingEdits,
+} from "@/lib/attendance-runtime";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
