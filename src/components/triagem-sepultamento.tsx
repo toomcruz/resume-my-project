@@ -149,7 +149,7 @@ export function TriagemSepultamento({
   function pickHorario(horario: string) {
     // Horário do sepultamento = fim do velório (regra do negócio).
     // Propaga automaticamente para fim_velorio se ainda estiver vazio.
-    const patch: Partial<typeof extras> = { hora_sepultamento: horario };
+    const patch: Record<string, string> = { hora_sepultamento: horario };
     if (!extras.fim_velorio?.trim()) patch.fim_velorio = horario;
     onExtrasChange(patch);
     next();
