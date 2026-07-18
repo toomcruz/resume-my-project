@@ -77,12 +77,18 @@ export const extractAttendanceVision = createServerFn({ method: "POST" })
             | undefined)
         : undefined;
 
+    // Chaves canônicas esperadas pelo processo — orienta a IA a preencher
+    // exatamente os campos obrigatórios que o revisor cobra na UI.
+    const { getFieldsForProcess } = await import("@/lib/extraction/field-catalog");
+    const expectedCanonicalKeys = getFieldsForProcess(attendance.process).map((f) => f.key);
+
     const { state, errors } = await extractAttendanceVisionCore({
       images: prepared,
       processLabel: attendance.process,
       contextHints: `Subprocesso: ${attendance.subprocess ?? "-"}. Detalhes: ${JSON.stringify(
         attendance.subprocess_details ?? {},
       )}`,
+      expectedCanonicalKeys,
       previousState,
     });
 
