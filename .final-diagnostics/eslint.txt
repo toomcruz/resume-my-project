@@ -1,0 +1,8 @@
+
+/home/runner/work/resume-my-project/resume-my-project/src/lib/__tests__/pps-schedule.test.ts
+  6:12  error  Replace `⏎······isPpsSchedule({·processKey:·"exumacao",·tipoAgendaExumacao:·"exumacao_pss"·}),⏎····).toBe(true` with `isPpsSchedule({·processKey:·"exumacao",·tipoAgendaExumacao:·"exumacao_pss"·})).toBe(⏎······true,⏎····`  prettier/prettier
+  9:12  error  Replace `⏎······isPpsSchedule({·processKey:·"exumacao",·tipoAgendaExumacao:·"exumacao"·}),⏎····` with `isPpsSchedule({·processKey:·"exumacao",·tipoAgendaExumacao:·"exumacao"·})`                                             prettier/prettier
+
+✖ 2 problems (2 errors, 0 warnings)
+  2 errors and 0 warnings potentially fixable with the `--fix` option.
+

@@ -1,0 +1,11 @@
+.github/workflows/diagnose-final-pps.yml
+.trigger-final-pps-diagnostic
+src/components/triagem-sepultamento.tsx
+src/lib/__tests__/agenda-sync.test.ts
+src/lib/__tests__/pps-schedule.test.ts
+src/lib/__tests__/triagem-sepultamento.test.ts
+src/lib/agenda-sync.ts
+src/lib/domain/__tests__/context-adapter.test.ts
+src/lib/domain/context-adapter.ts
+src/lib/triagem-sepultamento.ts
+src/routes/_authed.atendimento.novo.tsx
