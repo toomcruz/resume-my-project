@@ -12,15 +12,16 @@ import {
 
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-// Pro como primário: precisão superior em fotos borradas, prints de baixa
-// resolução e manuscritos — que é onde o Flash mais errava.
-const MODEL_PRIMARY = "google/gemini-3-pro-preview";
-// Flash como fallback rápido em erros HTTP transitórios (5xx/timeout).
-const MODEL_FALLBACK = "google/gemini-3-flash-preview";
+// Flash como primário: ~5x mais rápido que o Pro e suficiente para a maioria
+// dos prints/documentos. Pro entra apenas na passada de verificação para
+// campos com baixa confiança — economiza tempo e créditos sem perder acurácia.
+const MODEL_PRIMARY = "google/gemini-2.5-flash";
+const MODEL_VERIFY = "google/gemini-3-pro-preview";
+const MODEL_FALLBACK = "google/gemini-2.5-flash-lite";
 
-// Timeouts generosos: Pro é mais lento, mas o ganho de acurácia compensa.
-const TIMEOUT_PRIMARY_MS = 45000;
-const TIMEOUT_FALLBACK_MS = 20000;
+const TIMEOUT_PRIMARY_MS = 25000;
+const TIMEOUT_VERIFY_MS = 35000;
+const TIMEOUT_FALLBACK_MS = 15000;
 
 // Se a mediana das confidences ficar abaixo disto OU houver muitos warnings,
 // disparamos uma passada de verificação focada nos campos duvidosos.
@@ -345,8 +346,8 @@ export async function extractSingleImage(
       params,
       "verification",
       deps,
-      MODEL_PRIMARY,
-      TIMEOUT_PRIMARY_MS,
+      MODEL_VERIFY,
+      TIMEOUT_VERIFY_MS,
       first.data,
     );
     if (verify.ok) {
