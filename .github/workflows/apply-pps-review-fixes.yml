@@ -1,0 +1,44 @@
+name: Apply PPS review fixes
+
+on:
+  push:
+    branches:
+      - fix/correct-sepultamento-jazigo-pps-flow
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Apply fixes
+        run: |
+          awk '
+            /python3 <<'"'"'PY'"'"'/ { capture=1; next }
+            capture && /^          PY$/ { capture=0; exit }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/fix-pps-review-findings.yml > /tmp/fix.py
+          python3 /tmp/fix.py
+          bunx prettier --write \
+            src/components/triagem-sepultamento.tsx \
+            src/routes/_authed.atendimento.novo.tsx \
+            src/lib/agenda-sync.ts \
+            src/lib/__tests__/triagem-sepultamento.test.ts
+      - name: Commit fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/components/triagem-sepultamento.tsx \
+            src/routes/_authed.atendimento.novo.tsx \
+            src/lib/agenda-sync.ts \
+            src/lib/__tests__/triagem-sepultamento.test.ts
+          git commit -m "fix: conclui fluxo de gaveta e agenda PPS"
+          git push
