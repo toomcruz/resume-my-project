@@ -154,7 +154,10 @@ export function buildTriagemOverrides(state: TriagemSepultamentoState): Record<s
   } else {
     if (state.sala_velorio) out.sala_velorio = state.sala_velorio;
     if (state.inicio_velorio) out.inicio_velorio = state.inicio_velorio;
-    if (state.fim_velorio) out.fim_velorio = state.fim_velorio;
+    // Fim do velório = horário do sepultamento (regra do negócio).
+    // Só usa o campo manual quando o operador digitou algo diferente.
+    const fim = state.fim_velorio?.trim() || state.hora_sepultamento?.trim() || "";
+    if (fim) out.fim_velorio = fim;
   }
   if (state.local_sepultamento?.trim()) {
     out.local_sepultamento = state.local_sepultamento.trim();
