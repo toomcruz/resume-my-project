@@ -105,13 +105,14 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Sair"
+              size="lg"
               onClick={async () => {
                 await supabase.auth.signOut();
                 navigate({ to: "/auth", replace: true });
               }}
               className="hover:bg-sidebar-accent/60"
             >
-              <LogOut className="h-4 w-4 shrink-0" />
+              <LogOut className="h-5 w-5 shrink-0" />
               <span>Sair</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
