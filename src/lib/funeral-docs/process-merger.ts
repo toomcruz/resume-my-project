@@ -18,6 +18,7 @@ import { detectDiscrepancies } from "./discrepancy-detector";
 import { detectarPadraoFuneral } from "./padrao-funeral";
 import { mergeDeceased, sameDeceased } from "./person-matcher";
 import { computePending } from "./required-fields";
+import { montarCadastroGscemi } from "./gscemi";
 
 function vr(value: unknown, docId?: string, confianca = 0.7): ValorRastreado | undefined {
   if (value == null) return undefined;
@@ -219,10 +220,43 @@ export function mergeProcess(docs: DocumentoFonte[], opts: MergeOptions = {}): P
     }
   }
 
+  // GSCEMI: consolida cadastro do concessionário e relaciona papéis
+  {
+    const declarante = processo.responsavelPrincipal
+      ? {
+          nome: processo.responsavelPrincipal.nome?.normalized,
+          cpf: processo.responsavelPrincipal.cpf?.normalized,
+          rg: processo.responsavelPrincipal.rg?.normalized,
+          telefone1: processo.responsavelPrincipal.telefone1?.normalized,
+          dataNascimento: processo.responsavelPrincipal.dataNascimento?.normalized,
+        }
+      : undefined;
+    const contratante = processo.contratante
+      ? {
+          nome: processo.contratante.nome?.normalized,
+          cpf: processo.contratante.cpf?.normalized,
+          rg: processo.contratante.rg?.normalized,
+          telefone1: processo.contratante.telefone1?.normalized,
+        }
+      : undefined;
+    const principal = processo.falecidos.find((f) => f.papel === "principal");
+    const falecidoSepultado = principal
+      ? {
+          nome: principal.nome?.normalized,
+          cpf: principal.cpf?.normalized,
+          rg: principal.rg?.normalized,
+          dataNascimento: principal.dataNascimento?.normalized,
+        }
+      : undefined;
+    const cad = montarCadastroGscemi({ documentos: docs, declarante, contratante, falecidoSepultado });
+    if (cad) processo.cadastroGscemi = cad;
+  }
+
   processo.divergencias = detectDiscrepancies(docs);
   processo.camposPendentes = computePending(processo);
   return processo;
 }
+
 
 /** Aplica uma correção manual a um campo específico. Prevalece sobre OCR. */
 export function applyManualCorrection<T extends ProcessoFunerario>(processo: T, path: string, value: string): T {

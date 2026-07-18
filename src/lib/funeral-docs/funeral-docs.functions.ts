@@ -63,6 +63,55 @@ const FIELDS = [
   "itens",
   "ordens_servico",
   "pagamento",
+  // GSCEMI — cadastro do concessionário
+  "inscricao",
+  "contrato",
+  "arquivo",
+  "pre_contrato",
+  "grupo",
+  "sg",
+  "t_venda",
+  "tipo_venda",
+  "tipo_concessao",
+  "quadra",
+  "nome_quadra",
+  "letra",
+  "lote",
+  "numero_jazigo",
+  "qtd_contratos",
+  "qtd_jazigos",
+  "status_cadastro",
+  "data_status",
+  "filial",
+  "vendedor",
+  "tipo_concessionario",
+  "valor_informado",
+  "tipo_cobranca",
+  "dia_vencimento",
+  "qtd_cremacoes",
+  "nome_concessionario",
+  "cpf_concessionario",
+  "rg_concessionario",
+  "orgao_expedidor",
+  "data_nascimento",
+  "data_falecimento",
+  "estado_civil",
+  "profissao",
+  "telefone_1",
+  "telefone_2",
+  "celular",
+  "fax",
+  "email",
+  "nacionalidade",
+  "local_nascimento",
+  "uf_nascimento",
+  "familia",
+  "matricula",
+  "observacao",
+  "cep_residencial", "endereco_residencial", "numero_residencial", "complemento_residencial", "cidade_residencial", "bairro_residencial", "ponto_referencia_residencial", "area_residencial",
+  "cep_cobranca", "endereco_cobranca", "numero_cobranca", "complemento_cobranca", "cidade_cobranca", "bairro_cobranca", "ponto_referencia_cobranca", "area_cobranca",
+  "cep_comercial", "endereco_comercial", "numero_comercial", "complemento_comercial", "cidade_comercial", "bairro_comercial",
+  "nome_dependente", "cpf_dependente", "rg_dependente", "data_nascimento_dependente", "telefone_dependente", "grau_parentesco_dependente",
 ];
 
 export const classifyAndExtractProcess = createServerFn({ method: "POST" })
@@ -110,7 +159,7 @@ export const classifyAndExtractProcess = createServerFn({ method: "POST" })
           processLabel: data.tipoProcesso,
           timeoutMs: 20000,
           contextHints:
-            "Documento pode ser Declaração de Óbito ou Nota de Contratação Funeral. Extraia apenas o que for legível; nunca invente.",
+            "Documento pode ser Declaração de Óbito, Nota de Contratação Funeral ou Cadastro de Concessionário GSCEMI. O cadastro GSCEMI pode aparecer em várias abas (Manutenção, Endereço, Complementares) — extraia todos os campos visíveis em cada aba. Nunca invente.",
         });
       } catch (err) {
         logSafe("extração falhou", { imageId: item.imageId, error: (err as Error).message });
@@ -213,7 +262,7 @@ const ConfirmInput = z.object({
   campoPath: z.string(),
   valorCorreto: z.string(),
   valorExtraido: z.string().optional(),
-  tipoDocumento: z.enum(["DECLARACAO_DE_OBITO", "NOTA_DE_CONTRATACAO_FUNERAL", "DOCUMENTO_DESCONHECIDO"]).default("DOCUMENTO_DESCONHECIDO"),
+  tipoDocumento: z.enum(["DECLARACAO_DE_OBITO", "NOTA_DE_CONTRATACAO_FUNERAL", "CADASTRO_CONCESSIONARIO_GSCEMI", "DOCUMENTO_DESCONHECIDO"]).default("DOCUMENTO_DESCONHECIDO"),
 });
 
 export const confirmProcessField = createServerFn({ method: "POST" })

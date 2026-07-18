@@ -18,6 +18,12 @@ import { detectDiscrepancies } from "../discrepancy-detector";
 import { applyManualCorrection, mergeProcess } from "../process-merger";
 import { logSafe, mask } from "../logger";
 import { computePending } from "../required-fields";
+import {
+  detectarTipoConcessao,
+  montarCadastroGscemi,
+  samePerson,
+  situacaoConcessionario,
+} from "../gscemi";
 import type { DocumentoFonte, Falecido } from "../types";
 
 // ---------- Normalizadores ----------
@@ -71,7 +77,217 @@ describe("document classifier", () => {
     const r = classifyDocument({ ocrText: "recibo simples" });
     expect(r.tipo).toBe("DOCUMENTO_DESCONHECIDO");
   });
+  it("identifica cadastro GSCEMI", () => {
+    const r = classifyDocument({
+      ocrText:
+        "Cadastro de Concessionário GSCEMI Manutenção Inscrição Contrato Grupo T.Venda Filial Quadra Letra Dependentes Cadastrado por Data Cadastro",
+    });
+    expect(r.tipo).toBe("CADASTRO_CONCESSIONARIO_GSCEMI");
+  });
 });
+
+// ---------- GSCEMI ----------
+describe("GSCEMI — cadastro do concessionário", () => {
+  const abaManutencao: DocumentoFonte = {
+    id: "gsc-1",
+    tipoDocumento: "CADASTRO_CONCESSIONARIO_GSCEMI",
+    classificacaoConfianca: 0.9,
+    dadosExtraidos: {
+      inscricao: "170931080",
+      contrato: "",
+      arquivo: "77264",
+      grupo: "COMUM",
+      t_venda: "COMUN",
+      tipo_venda: "COMUNITARIO",
+      quadra: "639",
+      nome_quadra: "QUADRA GERAL 01",
+      letra: "1GLD",
+      qtd_jazigos: 1,
+      status_cadastro: "ATIVO",
+      filial: "SANTANA",
+      nome_concessionario: "PESSOA FICTICIA TESTE",
+      cpf_concessionario: "111.222.333-44",
+      rg_concessionario: "111111111",
+      data_nascimento: "01/01/1959",
+      data_falecimento: "",
+      estado_civil: "DIVORCIADO(A)",
+      sexo: "FEMININO",
+      profissao: "TESTE",
+      nacionalidade: "BRASILEIRA",
+      local_nascimento: "SAO PAULO",
+      uf_nascimento: "SP",
+    },
+  };
+  const abaEndereco: DocumentoFonte = {
+    id: "gsc-2",
+    tipoDocumento: "CADASTRO_CONCESSIONARIO_GSCEMI",
+    classificacaoConfianca: 0.9,
+    dadosExtraidos: {
+      inscricao: "170931080",
+      cep_residencial: "06543-001",
+      endereco_residencial: "AVENIDA FICTICIA",
+      numero_residencial: "1001",
+      complemento_residencial: "APTO 92-A",
+      cidade_residencial: "SANTANA DE PARNAIBA",
+      bairro_residencial: "TAMBORE",
+      cep_cobranca: "06543-001",
+      endereco_cobranca: "AVENIDA FICTICIA",
+      numero_cobranca: "1001",
+    },
+  };
+  const abaComplementar: DocumentoFonte = {
+    id: "gsc-3",
+    tipoDocumento: "CADASTRO_CONCESSIONARIO_GSCEMI",
+    classificacaoConfianca: 0.9,
+    dadosExtraidos: {
+      inscricao: "170931080",
+      telefone_1: "(11) 99999-0000",
+      celular: "(11) 98888-0000",
+      email: "fake@example.com",
+      familia: "MAI",
+      vendedor: "VENDEDOR TESTE",
+      dia_vencimento: "15",
+    },
+  };
+
+  it("une três abas do mesmo cadastro em uma única pessoa/concessão", () => {
+    const p = mergeProcess([abaManutencao, abaEndereco, abaComplementar]);
+    const cad = p.cadastroGscemi!;
+    expect(cad).toBeTruthy();
+    expect(cad.origemDocIds).toHaveLength(3);
+    expect(cad.concessao.inscricaoGscemi).toBe("170931080");
+    expect(cad.concessao.numeroArquivo).toBe("77264");
+    expect(cad.concessao.inscricaoGscemi).not.toBe(cad.concessao.numeroArquivo);
+    expect(cad.concessionario?.nome).toBe("PESSOA FICTICIA TESTE");
+    expect(cad.concessionario?.enderecoResidencial?.numero).toBe("1001");
+    expect(cad.concessionario?.telefone1).toContain("99999");
+  });
+
+  it("classifica QUADRA_GERAL_TEMPORARIA sem exigir dependente", () => {
+    const p = mergeProcess([abaManutencao, abaEndereco]);
+    const cad = p.cadastroGscemi!;
+    expect(cad.tipoConcessao).toBe("QUADRA_GERAL_TEMPORARIA");
+    expect(cad.administradorProvisorio).toBeUndefined();
+    expect(cad.alertas.some((a) => /Quadra Geral/i.test(a.mensagem))).toBe(true);
+    // não gera pendência específica de administrador provisório
+    expect(cad.alertas.some((a) => /administrador provisório/i.test(a.mensagem) && a.nivel === "warn")).toBe(false);
+  });
+
+  it("JAZIGO com concessionário vivo não cria administrador provisório", () => {
+    const jazigo: DocumentoFonte = {
+      ...abaManutencao,
+      dadosExtraidos: {
+        ...abaManutencao.dadosExtraidos,
+        tipo_venda: "JAZIGO",
+        nome_quadra: "QUADRA A",
+      },
+    };
+    const cad = mergeProcess([jazigo]).cadastroGscemi!;
+    expect(cad.tipoConcessao).toBe("JAZIGO_CONCESSAO");
+    expect(situacaoConcessionario(cad.concessionario)).toBe("VIVO");
+    expect(cad.administradorProvisorio).toBeUndefined();
+  });
+
+  it("JAZIGO com concessionário falecido + dependente vira ADMINISTRADOR_PROVISORIO_JAZIGO", () => {
+    const jazigoFalecido: DocumentoFonte = {
+      id: "gsc-x",
+      tipoDocumento: "CADASTRO_CONCESSIONARIO_GSCEMI",
+      classificacaoConfianca: 0.9,
+      dadosExtraidos: {
+        inscricao: "888",
+        tipo_venda: "JAZIGO",
+        nome_concessionario: "TITULAR FALECIDO",
+        cpf_concessionario: "999.999.999-99",
+        data_falecimento: "10/10/2020",
+        nome_dependente: "DEPENDENTE FICTICIO",
+        cpf_dependente: "222.333.444-55",
+        grau_parentesco_dependente: "FILHA",
+      },
+    };
+    const cad = mergeProcess([jazigoFalecido]).cadastroGscemi!;
+    expect(cad.tipoConcessao).toBe("JAZIGO_CONCESSAO");
+    expect(cad.situacaoConcessionario).toBe("FALECIDO");
+    expect(cad.administradorProvisorio?.nome).toBe("DEPENDENTE FICTICIO");
+    expect(cad.administradorProvisorio?.papeis).toContain("ADMINISTRADOR_PROVISORIO_JAZIGO");
+    expect(cad.administradorProvisorio?.grauParentescoComConcessionario).toBe("FILHA");
+    // grau com concessionário existe mas nunca vira grau com falecido sepultado
+    expect((cad.administradorProvisorio as unknown as Record<string, unknown>).grauParentescoComFalecidoSepultado).toBeUndefined();
+  });
+
+  it("JAZIGO com concessionário falecido sem dependente cria alerta de pendência", () => {
+    const jazigoOrfao: DocumentoFonte = {
+      id: "gsc-y",
+      tipoDocumento: "CADASTRO_CONCESSIONARIO_GSCEMI",
+      classificacaoConfianca: 0.9,
+      dadosExtraidos: {
+        inscricao: "777",
+        tipo_venda: "JAZIGO",
+        nome_concessionario: "OUTRO FALECIDO",
+        data_falecimento: "01/01/2000",
+      },
+    };
+    const cad = mergeProcess([jazigoOrfao]).cadastroGscemi!;
+    expect(cad.administradorProvisorio).toBeUndefined();
+    expect(cad.alertas.some((a) => a.nivel === "warn" && /nenhum administrador/i.test(a.mensagem))).toBe(true);
+  });
+
+  it("concessionário também é declarante quando dados coincidem — pessoa única, papéis múltiplos", () => {
+    const doDoc: DocumentoFonte = {
+      id: "do-1",
+      tipoDocumento: "DECLARACAO_DE_OBITO",
+      classificacaoConfianca: 0.95,
+      dadosExtraidos: {
+        nome_falecido: "MARIA FICTICIA",
+        nome_declarante: "PESSOA FICTICIA TESTE",
+        cpf_declarante: "111.222.333-44",
+        grau_parentesco_declarante: "FILHA",
+        data_obito: "01/01/2026",
+      },
+    };
+    const p = mergeProcess([doDoc, abaManutencao]);
+    const cad = p.cadastroGscemi!;
+    expect(cad.concessionario?.papeis).toEqual(expect.arrayContaining(["CONCESSIONARIO", "DECLARANTE"]));
+    // continua sendo uma única pessoa cadastral (não duplica)
+    expect(cad.concessionario?.cpf).toBe("111.222.333-44");
+  });
+
+  it("concessionário sem relação direta com o falecido é sinalizado", () => {
+    const doDoc: DocumentoFonte = {
+      id: "do-2",
+      tipoDocumento: "DECLARACAO_DE_OBITO",
+      classificacaoConfianca: 0.95,
+      dadosExtraidos: {
+        nome_falecido: "OUTRA PESSOA",
+        nome_declarante: "TERCEIRO DECLARANTE",
+        cpf_declarante: "555.666.777-88",
+        data_obito: "01/01/2026",
+      },
+    };
+    const cad = mergeProcess([doDoc, abaManutencao]).cadastroGscemi!;
+    expect(cad.concessionario?.papeis).toEqual(["CONCESSIONARIO"]);
+    expect(cad.alertas.some((a) => /não possui relação direta/i.test(a.mensagem))).toBe(true);
+  });
+
+  it("samePerson exige mais que o nome quando há CPF divergente", () => {
+    expect(
+      samePerson(
+        { nome: "JOSE SILVA", cpf: "111.222.333-44" },
+        { nome: "JOSE SILVA", cpf: "555.666.777-88" },
+      ),
+    ).toBe(false);
+  });
+
+  it("detectarTipoConcessao reconhece Quadra Geral por termos-chave", () => {
+    expect(detectarTipoConcessao({ nomeQuadra: "QUADRA GERAL 01" })).toBe("QUADRA_GERAL_TEMPORARIA");
+    expect(detectarTipoConcessao({ tipoVenda: "PRAZO FIXO" })).toBe("QUADRA_GERAL_TEMPORARIA");
+    expect(detectarTipoConcessao({ tipoVenda: "JAZIGO" })).toBe("JAZIGO_CONCESSAO");
+  });
+
+  it("montarCadastroGscemi retorna undefined sem documentos GSCEMI", () => {
+    expect(montarCadastroGscemi({ documentos: [] })).toBeUndefined();
+  });
+});
+
 
 // ---------- Padrão do funeral ----------
 describe("padrão do funeral", () => {
