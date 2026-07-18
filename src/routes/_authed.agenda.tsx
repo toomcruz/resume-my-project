@@ -31,6 +31,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Download,
   Edit3,
   Loader2,
   MapPin,
@@ -38,6 +39,7 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
+import { downloadBlob, exportAgendaReport } from "@/lib/agenda-report";
 import {
   AGENDA_STATUSES,
   AGENDA_TYPES,
