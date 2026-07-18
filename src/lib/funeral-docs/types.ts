@@ -133,7 +133,7 @@ export interface DocumentoFonte {
   tipoDocumento: TipoDocumento;
   attendanceImageId?: string;
   classificacaoConfianca: number;
-  dadosExtraidos: Record<string, unknown>;
+  dadosExtraidos: Record<string, string>;
 }
 
 export interface Divergencia {
