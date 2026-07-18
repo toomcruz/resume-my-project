@@ -71,6 +71,7 @@ export interface AgendaEventDraft {
   vehicle_plate: string;
 }
 
+
 export const AGENDA_TYPES: Array<{
   value: AgendaType;
   label: string;
@@ -157,6 +158,7 @@ export function eventToDraft(event: AgendaEvent): AgendaEventDraft {
     event_date: event.event_date,
     start_time: trimTime(event.start_time),
     end_time: trimTime(event.end_time),
+
     deceased_name: event.deceased_name ?? "",
     responsible_name: event.responsible_name ?? "",
     registration_number: event.registration_number ?? "",
@@ -182,6 +184,7 @@ export function eventToDraft(event: AgendaEvent): AgendaEventDraft {
     vehicle_plate: event.vehicle_plate ?? "",
   };
 }
+
 
 export function trimTime(value?: string | null): string {
   if (!value) return "";

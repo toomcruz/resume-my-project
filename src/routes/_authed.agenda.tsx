@@ -31,7 +31,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
-  Download,
   Edit3,
   Loader2,
   MapPin,
@@ -39,7 +38,6 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { downloadBlob, exportAgendaReport } from "@/lib/agenda-report";
 import {
   AGENDA_STATUSES,
   AGENDA_TYPES,
@@ -68,6 +66,11 @@ import {
   updateExhumationStatus,
 } from "@/lib/agenda-exhumation";
 import { cn } from "@/lib/utils";
+import { useServerFn } from "@tanstack/react-start";
+import { readArrivalFromImage, type ArrivalInfo } from "@/lib/vision/read-arrival.functions";
+import { Camera } from "lucide-react";
+import { useRef } from "react";
+
 
 export const Route = createFileRoute("/_authed/agenda")({
   component: OperationalAgenda,
@@ -241,6 +244,7 @@ function OperationalAgenda() {
           driver_name: toNullable(draft.driver_name),
           vehicle_plate: toNullable(draft.vehicle_plate),
         };
+
         if (editingId) {
           const { error } = await db.from("agenda_events").update(payload).eq("id", editingId);
           if (error) throw error;
@@ -293,20 +297,6 @@ function OperationalAgenda() {
     }
   }
 
-  async function handleExportReport() {
-    try {
-      const list = events ?? [];
-      if (agendaType !== "velorio_sepultamento") {
-        toast.error("Relatório disponível apenas na agenda de Velório e Sepultamento.");
-        return;
-      }
-      const blob = await exportAgendaReport(list, selectedDate);
-      downloadBlob(blob, `agenda-${selectedDate}.xlsx`);
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Não foi possível gerar o relatório."));
-    }
-  }
-
   const currentType = AGENDA_TYPES.find((item) => item.value === agendaType)!;
 
   return (
@@ -318,16 +308,9 @@ function OperationalAgenda() {
             Exumação, velório, sepultamento e PPS em um único módulo, sem criar cadastro de família.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {agendaType === "velorio_sepultamento" && (
-            <Button variant="outline" onClick={handleExportReport} className="gap-2">
-              <Download className="h-4 w-4" /> Relatório do dia
-            </Button>
-          )}
-          <Button onClick={openNew} className="gap-2">
-            <Plus className="h-4 w-4" /> Novo agendamento
-          </Button>
-        </div>
+        <Button onClick={openNew} className="gap-2">
+          <Plus className="h-4 w-4" /> Novo agendamento
+        </Button>
       </div>
 
       <Tabs value={agendaType} onValueChange={changeType}>
@@ -768,6 +751,31 @@ function AgendaDialog({
 
           {wake && (
             <>
+              <Field label="Sala de velório">
+                <Input
+                  value={draft.room}
+                  onChange={(event) => onChange("room", event.target.value)}
+                />
+              </Field>
+              <Field label="Horário do sepultamento">
+                <Input
+                  type="time"
+                  value={draft.burial_time}
+                  onChange={(event) => onChange("burial_time", event.target.value)}
+                />
+              </Field>
+              <Field label="Local do sepultamento">
+                <Input
+                  value={draft.burial_location}
+                  onChange={(event) => onChange("burial_location", event.target.value)}
+                />
+              </Field>
+              <Field label="Funerária / agência">
+                <Input
+                  value={draft.funeral_home}
+                  onChange={(event) => onChange("funeral_home", event.target.value)}
+                />
+              </Field>
               <Field label="Quadra / Rua">
                 <Input
                   value={draft.quadra_rua}
@@ -786,36 +794,30 @@ function AgendaDialog({
                   onChange={(event) => onChange("gaveta", event.target.value)}
                 />
               </Field>
-              <Field label="Sala de velório">
-                <Input
-                  value={draft.room}
-                  onChange={(event) => onChange("room", event.target.value)}
-                />
-              </Field>
-              <Field label="Horário do sepultamento">
-                <Input
-                  type="time"
-                  value={draft.burial_time}
-                  onChange={(event) => onChange("burial_time", event.target.value)}
-                />
-              </Field>
+
+              <div className="sm:col-span-2 mt-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Chegada do corpo</p>
+                    <p className="text-xs text-muted-foreground">
+                      Envie o print da mensagem do grupo e o sistema preenche horário, motorista e placa.
+                    </p>
+                  </div>
+                  <ArrivalPhotoButton
+                    onExtracted={(info) => {
+                      if (info.arrival_time) onChange("arrival_time", info.arrival_time);
+                      if (info.driver_name) onChange("driver_name", info.driver_name);
+                      if (info.vehicle_plate) onChange("vehicle_plate", info.vehicle_plate);
+                    }}
+                  />
+                </div>
+              </div>
+
               <Field label="Horário de chegada do corpo">
                 <Input
                   type="time"
                   value={draft.arrival_time}
                   onChange={(event) => onChange("arrival_time", event.target.value)}
-                />
-              </Field>
-              <Field label="Local do sepultamento">
-                <Input
-                  value={draft.burial_location}
-                  onChange={(event) => onChange("burial_location", event.target.value)}
-                />
-              </Field>
-              <Field label="Bloco / empresa (funerária)">
-                <Input
-                  value={draft.funeral_home}
-                  onChange={(event) => onChange("funeral_home", event.target.value)}
                 />
               </Field>
               <Field label="Motorista">
@@ -827,12 +829,13 @@ function AgendaDialog({
               <Field label="Placa do veículo">
                 <Input
                   value={draft.vehicle_plate}
-                  onChange={(event) => onChange("vehicle_plate", event.target.value)}
-                  placeholder="ABC-1D23"
+                  onChange={(event) => onChange("vehicle_plate", event.target.value.toUpperCase())}
+                  placeholder="AAA0A00"
                 />
               </Field>
             </>
           )}
+
 
           {exumation && (
             <>
@@ -954,4 +957,64 @@ function Field({
       {children}
     </div>
   );
+}
+
+function ArrivalPhotoButton({ onExtracted }: { onExtracted: (info: ArrivalInfo) => void }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const readArrival = useServerFn(readArrivalFromImage);
+  const [busy, setBusy] = useState(false);
+
+  async function onFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Envie uma imagem (print/foto).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () => reject(reader.error ?? new Error("Falha ao ler o arquivo"));
+        reader.readAsDataURL(file);
+      });
+      const info = await readArrival({ data: { imageDataUrl: dataUrl } });
+      onExtracted(info);
+      const parts: string[] = [];
+      if (info.arrival_time) parts.push(`chegada ${info.arrival_time}`);
+      if (info.driver_name) parts.push(info.driver_name);
+      if (info.vehicle_plate) parts.push(info.vehicle_plate);
+      toast.success(parts.length ? `Extraído: ${parts.join(" · ")}` : "Nada identificado na imagem.");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Não foi possível ler a imagem."));
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void onFile(file);
+        }}
+      />
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        onClick={() => inputRef.current?.click()}
+        disabled={busy}
+      >
+        {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
+        {busy ? "Lendo..." : "Enviar print"}
+      </Button>
+    </>
+  );
+
 }

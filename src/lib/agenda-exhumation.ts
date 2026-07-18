@@ -72,6 +72,7 @@ export function rowToAgendaEvent(row: Row): AgendaEvent {
     driver_name: null,
     vehicle_plate: null,
     created_at: row.created_at,
+
     updated_at: row.updated_at,
   };
 }

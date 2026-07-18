@@ -36,6 +36,7 @@ function make(id: string, start: string | null, status: AgendaStatus): AgendaEve
     arrival_time: null,
     driver_name: null,
     vehicle_plate: null,
+
     created_at: "",
     updated_at: "",
   };

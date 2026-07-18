@@ -1,8 +1,0 @@
-
-ALTER TABLE public.agenda_events
-  ADD COLUMN IF NOT EXISTS quadra_rua TEXT,
-  ADD COLUMN IF NOT EXISTS terreno TEXT,
-  ADD COLUMN IF NOT EXISTS gaveta TEXT,
-  ADD COLUMN IF NOT EXISTS arrival_time TIME,
-  ADD COLUMN IF NOT EXISTS driver_name TEXT,
-  ADD COLUMN IF NOT EXISTS vehicle_plate TEXT;
