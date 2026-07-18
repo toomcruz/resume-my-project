@@ -971,12 +971,8 @@ function ArrivalPhotoButton({ onExtracted }: { onExtracted: (info: ArrivalInfo) 
     }
     setBusy(true);
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result ?? ""));
-        reader.onerror = () => reject(reader.error ?? new Error("Falha ao ler o arquivo"));
-        reader.readAsDataURL(file);
-      });
+      const { compressImageToDataUrl } = await import("@/lib/image-compress");
+      const dataUrl = await compressImageToDataUrl(file, { maxSide: 1280, quality: 0.82 });
       const info = await readArrival({ data: { imageDataUrl: dataUrl } });
       onExtracted(info);
       const parts: string[] = [];

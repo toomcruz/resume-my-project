@@ -141,12 +141,8 @@ export function TriagemSepultamento({
     setReading(true);
     setPlacaEncontrada(null);
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result ?? ""));
-        reader.onerror = () => reject(reader.error ?? new Error("Falha ao ler arquivo"));
-        reader.readAsDataURL(file);
-      });
+      const { compressImageToDataUrl } = await import("@/lib/image-compress");
+      const dataUrl = await compressImageToDataUrl(file, { maxSide: 1280, quality: 0.82 });
       const { placa } = await readPlaca({ data: { imageDataUrl: dataUrl } });
       if (!placa) {
         toast.error("Não foi possível identificar a placa. Preencha manualmente.");
