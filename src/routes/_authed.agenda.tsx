@@ -739,6 +739,24 @@ function AgendaDialog({
 
           {wake && (
             <>
+              <Field label="Quadra / Rua">
+                <Input
+                  value={draft.quadra_rua}
+                  onChange={(event) => onChange("quadra_rua", event.target.value)}
+                />
+              </Field>
+              <Field label="Terreno">
+                <Input
+                  value={draft.terreno}
+                  onChange={(event) => onChange("terreno", event.target.value)}
+                />
+              </Field>
+              <Field label="Gaveta">
+                <Input
+                  value={draft.gaveta}
+                  onChange={(event) => onChange("gaveta", event.target.value)}
+                />
+              </Field>
               <Field label="Sala de velório">
                 <Input
                   value={draft.room}
@@ -752,16 +770,36 @@ function AgendaDialog({
                   onChange={(event) => onChange("burial_time", event.target.value)}
                 />
               </Field>
+              <Field label="Horário de chegada do corpo">
+                <Input
+                  type="time"
+                  value={draft.arrival_time}
+                  onChange={(event) => onChange("arrival_time", event.target.value)}
+                />
+              </Field>
               <Field label="Local do sepultamento">
                 <Input
                   value={draft.burial_location}
                   onChange={(event) => onChange("burial_location", event.target.value)}
                 />
               </Field>
-              <Field label="Funerária / agência">
+              <Field label="Bloco / empresa (funerária)">
                 <Input
                   value={draft.funeral_home}
                   onChange={(event) => onChange("funeral_home", event.target.value)}
+                />
+              </Field>
+              <Field label="Motorista">
+                <Input
+                  value={draft.driver_name}
+                  onChange={(event) => onChange("driver_name", event.target.value)}
+                />
+              </Field>
+              <Field label="Placa do veículo">
+                <Input
+                  value={draft.vehicle_plate}
+                  onChange={(event) => onChange("vehicle_plate", event.target.value)}
+                  placeholder="ABC-1D23"
                 />
               </Field>
             </>
