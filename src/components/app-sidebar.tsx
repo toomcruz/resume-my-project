@@ -62,10 +62,10 @@ export function AppSidebar() {
           <SidebarGroupContent className="pt-2">
             <Link to="/atendimento/novo" className="block px-2">
               <Button
-                size="sm"
-                className="w-full gap-2 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0"
+                size="default"
+                className="w-full gap-2 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0"
               >
-                <Plus className="h-4 w-4 shrink-0" />
+                <Plus className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>Novo atendimento</span>}
               </Button>
             </Link>
