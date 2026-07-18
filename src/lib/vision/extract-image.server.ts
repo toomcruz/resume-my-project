@@ -116,6 +116,8 @@ async function callOnce(
       ? `Analise a imagem com OCR minucioso e retorne o JSON descrito. Leia CADA campo visível, inclusive rodapé, carimbos e anotações à mão. imageId = "${params.imageId}".`
       : `A resposta anterior não passou pelo validador. Retorne EXATAMENTE um JSON no formato descrito, sem texto ao redor. imageId = "${params.imageId}".`;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
   let res: Response;
   try {
     res = await doFetch(GATEWAY_URL, {
@@ -124,6 +126,7 @@ async function callOnce(
         "Content-Type": "application/json",
         "Lovable-API-Key": apiKey,
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model,
         messages: [
@@ -140,12 +143,15 @@ async function callOnce(
       }),
     });
   } catch (e) {
+    clearTimeout(timer);
+    const isAbort = (e as Error)?.name === "AbortError";
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "falha de rede",
+      error: isAbort ? "timeout" : e instanceof Error ? e.message : "falha de rede",
       durationMs: Date.now() - started,
     };
   }
+  clearTimeout(timer);
 
   if (!res.ok) {
     if (res.status === 429) {
