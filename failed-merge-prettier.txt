@@ -1,5 +1,0 @@
-Checking formatting...
-[[33mwarn[39m] src/components/document-review.tsx
-[[33mwarn[39m] src/lib/domain/template-payload.ts
-[[33mwarn[39m] src/lib/vision/extract-image.server.ts
-[[33mwarn[39m] Code style issues found in 3 files. Run Prettier with --write to fix.
