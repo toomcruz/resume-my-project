@@ -90,8 +90,22 @@ function NewAttendance() {
   function selectProcess(key: string) {
     setProcessKey(key);
     setSubprocess("");
+    // Exumação em quadra geral já vai direto para a agenda normal.
+    // Em jazigo o operador precisa antes responder se há gaveta disponível.
     setExtras(key === "exumacao" ? { tipo_agenda_exumacao: "exumacao" } : {});
     setStep("details");
+  }
+
+  function chooseExumacaoSubprocess(value: string) {
+    setSubprocess(value);
+    if (processKey === "exumacao") {
+      setExtras((current) => ({
+        ...current,
+        // Quadra geral nunca é PSS. Em jazigo limpamos a escolha para exigir
+        // a resposta explícita sobre disponibilidade de gaveta.
+        tipo_agenda_exumacao: value === "quadra_geral" ? "exumacao" : "",
+      }));
+    }
   }
 
   function updateExtra(name: string, value: string) {
@@ -101,6 +115,7 @@ function NewAttendance() {
   function updateExtras(patch: Record<string, string>) {
     setExtras((current) => ({ ...current, ...patch }));
   }
+
 
   const isSepultamento = processKey === "sepultamento";
 
@@ -273,7 +288,7 @@ function NewAttendance() {
                       <button
                         key={option.value}
                         type="button"
-                        onClick={() => setSubprocess(option.value)}
+                        onClick={() => chooseExumacaoSubprocess(option.value)}
                         className={cn(
                           "p-3 rounded-md border text-sm text-center transition-colors hover:border-primary",
                           subprocess === option.value && "border-primary bg-accent",
@@ -286,6 +301,36 @@ function NewAttendance() {
                 </div>
               )
             )}
+
+            {processKey === "exumacao" && subprocess === "jazigo" && (
+              <div className="space-y-2 rounded-md border bg-muted/25 p-3">
+                <Label>Há gaveta disponível no jazigo?</Label>
+                <p className="text-xs text-muted-foreground">
+                  Exumação em jazigo só vira PPS (Pronto Sepultamento) quando não há
+                  gaveta disponível para novo sepultamento.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "exumacao", label: "Sim — Agenda de Exumação" },
+                    { value: "exumacao_pss", label: "Não — Exumação PPS" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => updateExtra("tipo_agenda_exumacao", option.value)}
+                      className={cn(
+                        "p-3 rounded-md border text-sm text-center transition-colors hover:border-primary",
+                        extras.tipo_agenda_exumacao === option.value &&
+                          "border-primary bg-accent",
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
             <ExtraFields
               fields={
@@ -343,12 +388,27 @@ function NewAttendance() {
                     });
                     if (errs.length) return toast.error(errs[0]);
                   }
+                  if (
+                    processKey === "exumacao" &&
+                    subprocess === "jazigo" &&
+                    !extras.tipo_agenda_exumacao
+                  ) {
+                    return toast.error(
+                      "Informe se há gaveta disponível no jazigo para escolher a agenda.",
+                    );
+                  }
                   setStep("upload");
                 }}
-                disabled={!!proc.subprocessOptions && !subprocess}
+                disabled={
+                  (!!proc.subprocessOptions && !subprocess) ||
+                  (processKey === "exumacao" &&
+                    subprocess === "jazigo" &&
+                    !extras.tipo_agenda_exumacao)
+                }
               >
                 Continuar <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
+
             </div>
           </CardContent>
         </Card>
