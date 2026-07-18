@@ -41,8 +41,8 @@ export function AppSidebar() {
           to="/dashboard"
           className="flex items-center gap-2.5 px-1 py-1.5 group-data-[collapsible=icon]:justify-center"
         >
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-            <FileText className="h-4 w-4" />
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
+            <FileText className="h-5 w-5" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
@@ -62,10 +62,10 @@ export function AppSidebar() {
           <SidebarGroupContent className="pt-2">
             <Link to="/atendimento/novo" className="block px-2">
               <Button
-                size="sm"
-                className="w-full gap-2 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:p-0"
+                size="default"
+                className="w-full gap-2 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:p-0"
               >
-                <Plus className="h-4 w-4 shrink-0" />
+                <Plus className="h-5 w-5 shrink-0" />
                 {!collapsed && <span>Novo atendimento</span>}
               </Button>
             </Link>
@@ -84,10 +84,11 @@ export function AppSidebar() {
                       asChild
                       isActive={active}
                       tooltip={item.title}
-                      className="data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground hover:bg-sidebar-accent/60"
+                      size="lg"
+                      className="[&>svg]:size-5 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground hover:bg-sidebar-accent/60"
                     >
                       <Link to={item.url} className="flex items-center gap-2.5">
-                        <item.icon className="h-4 w-4 shrink-0" />
+                        <item.icon className="h-5 w-5 shrink-0" />
                         <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -104,13 +105,14 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Sair"
+              size="lg"
               onClick={async () => {
                 await supabase.auth.signOut();
                 navigate({ to: "/auth", replace: true });
               }}
-              className="hover:bg-sidebar-accent/60"
+              className="[&>svg]:size-5 hover:bg-sidebar-accent/60"
             >
-              <LogOut className="h-4 w-4 shrink-0" />
+              <LogOut className="h-5 w-5 shrink-0" />
               <span>Sair</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
