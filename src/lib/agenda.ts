@@ -174,6 +174,12 @@ export function eventToDraft(event: AgendaEvent): AgendaEventDraft {
     pss_reference: event.pss_reference ?? "",
     status: event.status,
     notes: event.notes ?? "",
+    quadra_rua: event.quadra_rua ?? "",
+    terreno: event.terreno ?? "",
+    gaveta: event.gaveta ?? "",
+    arrival_time: trimTime(event.arrival_time),
+    driver_name: event.driver_name ?? "",
+    vehicle_plate: event.vehicle_plate ?? "",
   };
 }
 
