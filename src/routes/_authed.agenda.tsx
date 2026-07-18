@@ -293,6 +293,20 @@ function OperationalAgenda() {
     }
   }
 
+  async function handleExportReport() {
+    try {
+      const list = events ?? [];
+      if (agendaType !== "velorio_sepultamento") {
+        toast.error("Relatório disponível apenas na agenda de Velório e Sepultamento.");
+        return;
+      }
+      const blob = await exportAgendaReport(list, selectedDate);
+      downloadBlob(blob, `agenda-${selectedDate}.xlsx`);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Não foi possível gerar o relatório."));
+    }
+  }
+
   const currentType = AGENDA_TYPES.find((item) => item.value === agendaType)!;
 
   return (
@@ -304,9 +318,16 @@ function OperationalAgenda() {
             Exumação, velório, sepultamento e PPS em um único módulo, sem criar cadastro de família.
           </p>
         </div>
-        <Button onClick={openNew} className="gap-2">
-          <Plus className="h-4 w-4" /> Novo agendamento
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {agendaType === "velorio_sepultamento" && (
+            <Button variant="outline" onClick={handleExportReport} className="gap-2">
+              <Download className="h-4 w-4" /> Relatório do dia
+            </Button>
+          )}
+          <Button onClick={openNew} className="gap-2">
+            <Plus className="h-4 w-4" /> Novo agendamento
+          </Button>
+        </div>
       </div>
 
       <Tabs value={agendaType} onValueChange={changeType}>
