@@ -89,7 +89,6 @@ describe("triagem-sepultamento", () => {
   it("jazigo exige resposta sobre gaveta disponível", () => {
     const errs = validateTriagemSepultamento({
       subprocess: "jazigo",
-      jazigo_possui_gaveta_disponivel: "sim",
       data_agendada: "2026-07-16",
       hora_sepultamento: "14:00",
       tem_velorio: "NAO",
@@ -188,6 +187,8 @@ describe("triagem-sepultamento", () => {
     expect(TRIAGEM_SEPULTAMENTO_REVIEW_KEYS.has("horario_sepultamento")).toBe(true);
     expect(TRIAGEM_SEPULTAMENTO_REVIEW_KEYS.has("sala_velorio")).toBe(true);
     expect(TRIAGEM_SEPULTAMENTO_REVIEW_KEYS.has("placa_identificacao")).toBe(true);
+    expect(TRIAGEM_SEPULTAMENTO_REVIEW_KEYS.has("jazigo_possui_gaveta_disponivel")).toBe(true);
+    expect(TRIAGEM_SEPULTAMENTO_REVIEW_KEYS.has("hora_exumacao_pps")).toBe(true);
     expect(TRIAGEM_SEPULTAMENTO_REVIEW_KEYS.has("inscricao_gscemi")).toBe(false);
   });
 

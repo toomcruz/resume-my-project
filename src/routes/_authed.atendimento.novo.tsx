@@ -17,7 +17,7 @@ import { PROCESSES, getProcess, type ProcessExtraField } from "@/lib/processes";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, CalendarDays, FileText, Loader2, Upload, X } from "lucide-react";
-import type { AgendaType } from "@/lib/agenda";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import {
   burialRequiresPps,
   resolveAgendaType,
@@ -38,6 +38,8 @@ const TRIAGEM_SEPULTAMENTO_KEYS = new Set([
   "fim_velorio",
   "local_sepultamento",
   "funeraria",
+  "jazigo_possui_gaveta_disponivel",
+  "hora_exumacao_pps",
 ]);
 
 export const Route = createFileRoute("/_authed/atendimento/novo")({
@@ -128,14 +130,14 @@ function NewAttendance() {
   async function createLinkedAgendaEvents(attendanceId: string, userId: string): Promise<void> {
     if (!proc || !shouldCreateAgendaEvent(proc.key, extras)) return;
     const eventDate = extras.data_agendada!.trim();
-    const rows: Array<Record<string, unknown>> = [];
+    const rows: TablesInsert<"agenda_events">[] = [];
 
     if (proc.key === "sepultamento") {
       if (extras.tem_velorio === "SIM") {
         rows.push({
           user_id: userId,
           attendance_id: attendanceId,
-          agenda_type: "velorio_sepultamento" as AgendaType,
+          agenda_type: "velorio_sepultamento",
           event_date: eventDate,
           start_time: extras.inicio_velorio || extras.hora_sepultamento || null,
           end_time: extras.fim_velorio || null,
@@ -154,7 +156,7 @@ function NewAttendance() {
         rows.push({
           user_id: userId,
           attendance_id: attendanceId,
-          agenda_type: "exumacao_pss" as AgendaType,
+          agenda_type: "exumacao_pss",
           event_date: eventDate,
           start_time: extras.hora_exumacao_pps || null,
           end_time: null,
@@ -389,6 +391,9 @@ function NewAttendance() {
                       subprocess,
                       data_agendada: extras.data_agendada,
                       hora_sepultamento: extras.hora_sepultamento,
+                      jazigo_possui_gaveta_disponivel:
+                        (extras.jazigo_possui_gaveta_disponivel as "sim" | "nao" | "") || "",
+                      hora_exumacao_pps: extras.hora_exumacao_pps,
                       tem_velorio: (extras.tem_velorio as "SIM" | "NAO" | "") || "",
                       sala_velorio: extras.sala_velorio,
                       sem_velorio: (extras.sem_velorio as "SIM" | "") || "",
@@ -422,11 +427,13 @@ function NewAttendance() {
                   <div className="font-medium">Este atendimento será incluído na Agenda Geral</div>
                   <div className="text-muted-foreground">
                     {extras.data_agendada}
-                    {processKey === "exumacao" && extras.tipo_agenda_exumacao === "exumacao_pss"
-                      ? " · Exumação PSS"
-                      : processKey === "exumacao"
-                        ? " · Agenda de Exumação"
-                        : " · Velório + Sepultamento"}
+                    {processKey === "exumacao"
+                      ? " · Agenda de Exumação"
+                      : isSepultamentoPps && extras.tem_velorio === "SIM"
+                        ? " · Velório + Sepultamento · Exumação PPS"
+                        : isSepultamentoPps
+                          ? " · Sepultamento · Exumação PPS"
+                          : " · Velório + Sepultamento"}
                   </div>
                 </div>
               </div>

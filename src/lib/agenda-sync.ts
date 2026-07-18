@@ -80,7 +80,7 @@ export function buildAgendaSyncPatch<E extends Record<string, unknown>>(
 }
 
 /**
- * PPS-specific rules (Exumação PSS agenda):
+ * PPS-specific rules (Exumação PPS agenda):
  * - date must fall on a working day (Mon-Fri);
  * - time, when informed, must be one of the fixed slots (08:30, 09:00, 09:30).
  * Returns a list of user-facing error messages; empty when valid.
@@ -115,12 +115,12 @@ export function validatePpsSchedule(input: PpsScheduleInput): string[] {
       Number.isFinite(d) &&
       !isExhumationWorkingDay(new Date(y, m - 1, d, 12, 0, 0))
     ) {
-      errors.push("Exumação PSS ocorre apenas de segunda a sexta-feira.");
+      errors.push("Exumação PPS ocorre apenas de segunda a sexta-feira.");
     }
   }
   const timeRaw = input.hora_agendamento?.trim();
   if (timeRaw && !isExhumationTimeSlot(timeRaw)) {
-    errors.push(`Horário inválido para Exumação PSS. Use ${EXHUMATION_TIME_SLOTS.join(", ")}.`);
+    errors.push(`Horário inválido para Exumação PPS. Use ${EXHUMATION_TIME_SLOTS.join(", ")}.`);
   }
   return errors;
 }

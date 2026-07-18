@@ -152,7 +152,7 @@ export function TriagemSepultamento({
     onExtrasChange({
       jazigo_possui_gaveta_disponivel: value,
       hora_exumacao_pps: value === "sim" ? "" : extras.hora_exumacao_pps || "",
-      tipo_agenda_exumacao: value === "nao" ? "exumacao_pss" : "",
+      tipo_agenda_exumacao: "",
     });
     setTimeout(() => setStepIndex((index) => index + 1), 0);
   }
