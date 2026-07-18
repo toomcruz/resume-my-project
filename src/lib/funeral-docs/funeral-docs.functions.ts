@@ -232,7 +232,7 @@ export const confirmProcessField = createServerFn({ method: "POST" })
     const { applyManualCorrection } = await import("./process-merger");
     const updated = applyManualCorrection(row.dados as never, data.campoPath, data.valorCorreto);
 
-    await supabase.from("funeral_processes").update({ dados: updated }).eq("id", data.processId);
+    await supabase.from("funeral_processes").update({ dados: JSON.parse(JSON.stringify(updated)) as never }).eq("id", data.processId);
     await supabase.from("funeral_field_feedback").insert({
       user_id: userId,
       process_id: data.processId,
@@ -241,7 +241,7 @@ export const confirmProcessField = createServerFn({ method: "POST" })
       valor_extraido: data.valorExtraido ?? null,
       valor_correto: data.valorCorreto,
     });
-    return { ok: true, processo: updated };
+    return { ok: true, processoJson: JSON.stringify(updated) };
   });
 
 // -------- Resolver divergência --------
