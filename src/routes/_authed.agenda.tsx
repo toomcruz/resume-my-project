@@ -66,6 +66,11 @@ import {
   updateExhumationStatus,
 } from "@/lib/agenda-exhumation";
 import { cn } from "@/lib/utils";
+import { useServerFn } from "@tanstack/react-start";
+import { readArrivalFromImage, type ArrivalInfo } from "@/lib/vision/read-arrival.functions";
+import { Camera } from "lucide-react";
+import { useRef } from "react";
+
 
 export const Route = createFileRoute("/_authed/agenda")({
   component: OperationalAgenda,
