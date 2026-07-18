@@ -110,7 +110,7 @@ export function AppSidebar() {
                 await supabase.auth.signOut();
                 navigate({ to: "/auth", replace: true });
               }}
-              className="hover:bg-sidebar-accent/60"
+              className="[&>svg]:size-5 hover:bg-sidebar-accent/60"
             >
               <LogOut className="h-5 w-5 shrink-0" />
               <span>Sair</span>
