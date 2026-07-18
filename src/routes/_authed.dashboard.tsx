@@ -1,13 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, Clock, CheckCircle2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Plus, FileText, Clock, CheckCircle2, Trash2 } from "lucide-react";
 import { PROCESSES } from "@/lib/processes";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authed/dashboard")({
   component: Dashboard,
@@ -23,6 +35,7 @@ const statusMeta: Record<string, { label: string; icon: any; variant: any }> = {
 };
 
 function Dashboard() {
+  const queryClient = useQueryClient();
   const { data: items, isLoading } = useQuery({
     queryKey: ["attendances"],
     queryFn: async () => {
@@ -33,6 +46,33 @@ function Dashboard() {
       if (error) throw error;
       return data;
     },
+  });
+
+  const deleteOne = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("attendances").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Atendimento removido");
+      queryClient.invalidateQueries({ queryKey: ["attendances"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Falha ao remover"),
+  });
+
+  const clearAll = useMutation({
+    mutationFn: async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id;
+      if (!uid) throw new Error("Sessão expirada");
+      const { error } = await supabase.from("attendances").delete().eq("user_id", uid);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Histórico apagado");
+      queryClient.invalidateQueries({ queryKey: ["attendances"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Falha ao apagar histórico"),
   });
 
   return (
@@ -50,11 +90,43 @@ function Dashboard() {
             Gerencie seus atendimentos e gere documentos com precisão.
           </p>
         </div>
-        <Link to="/atendimento/novo">
-          <Button className="gap-2 gradient-primary text-primary-foreground shadow-[var(--shadow-glow)] transition-all hover:-translate-y-0.5 hover:brightness-110">
-            <Plus className="h-4 w-4" /> Novo atendimento
-          </Button>
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {items && items.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" /> Apagar histórico
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Apagar todo o histórico?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Todos os {items.length} atendimentos, imagens e documentos gerados serão
+                    removidos permanentemente. Esta ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => clearAll.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Apagar tudo
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          <Link to="/atendimento/novo">
+            <Button className="gap-2 gradient-primary text-primary-foreground shadow-[var(--shadow-glow)] transition-all hover:-translate-y-0.5 hover:brightness-110">
+              <Plus className="h-4 w-4" /> Novo atendimento
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {isLoading ? (
@@ -90,29 +162,64 @@ function Dashboard() {
             const Icon = sm.icon;
             const delay = `stagger-${Math.min(i + 1, 5)}`;
             return (
-              <Link key={a.id} to="/atendimento/$id" params={{ id: a.id }} className="block group">
-                <Card className={`premium-card premium-card-hover animate-fade-up ${delay}`}>
-                  <CardContent className="flex items-center justify-between gap-4 py-4">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted/70 text-foreground/80 transition-colors group-hover:bg-accent/15 group-hover:text-accent">
-                        <FileText className="h-4 w-4" />
+              <Card key={a.id} className={`premium-card premium-card-hover animate-fade-up ${delay}`}>
+                <CardContent className="flex items-center justify-between gap-4 py-4">
+                  <Link
+                    to="/atendimento/$id"
+                    params={{ id: a.id }}
+                    className="flex min-w-0 flex-1 items-center gap-3 group"
+                  >
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted/70 text-foreground/80 transition-colors group-hover:bg-accent/15 group-hover:text-accent">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate font-display font-semibold tracking-tight">
+                        {proc?.label ?? a.process}
                       </div>
-                      <div className="min-w-0">
-                        <div className="truncate font-display font-semibold tracking-tight">
-                          {proc?.label ?? a.process}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {a.subprocess ? `${a.subprocess} · ` : ""}
-                          {formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: ptBR })}
-                        </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {a.subprocess ? `${a.subprocess} · ` : ""}
+                        {formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: ptBR })}
                       </div>
                     </div>
-                    <Badge variant={sm.variant} className="shrink-0 gap-1 rounded-full px-2.5">
+                  </Link>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant={sm.variant} className="gap-1 rounded-full px-2.5">
                       <Icon className="h-3 w-3" /> {sm.label}
                     </Badge>
-                  </CardContent>
-                </Card>
-              </Link>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          aria-label="Apagar atendimento"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Apagar este atendimento?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            O atendimento e todos os seus arquivos e documentos gerados serão
+                            removidos permanentemente.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteOne.mutate(a.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Apagar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
