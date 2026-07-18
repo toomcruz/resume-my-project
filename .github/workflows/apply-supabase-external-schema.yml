@@ -1,0 +1,74 @@
+name: Aplicar schema no Supabase externo
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_project_ref:
+        description: "Digite o Project Ref do Supabase externo para confirmar"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-external-schema
+  cancel-in-progress: false
+
+jobs:
+  apply-schema:
+    name: Aplicar schema consolidado
+    if: ${{ github.event.inputs.confirm_project_ref == 'geprepccebxpdbhokuyl' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: supabase-external
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar cliente PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Validar arquivo e segredo
+        env:
+          SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
+        run: |
+          test -f supabase/migration_supabase_externo.sql
+          test -n "$SUPABASE_EXTERNAL_DB_URL"
+          grep -q '^BEGIN;' supabase/migration_supabase_externo.sql
+          grep -q '^COMMIT;' supabase/migration_supabase_externo.sql
+
+      - name: Aplicar schema no Supabase externo
+        env:
+          SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
+          PGSSLMODE: require
+        run: |
+          psql "$SUPABASE_EXTERNAL_DB_URL" \
+            --set=ON_ERROR_STOP=1 \
+            --file=supabase/migration_supabase_externo.sql
+
+      - name: Verificar estrutura criada
+        env:
+          SUPABASE_EXTERNAL_DB_URL: ${{ secrets.SUPABASE_EXTERNAL_DB_URL }}
+          PGSSLMODE: require
+        run: |
+          psql "$SUPABASE_EXTERNAL_DB_URL" --set=ON_ERROR_STOP=1 <<'SQL'
+          SELECT count(*) AS public_tables
+          FROM information_schema.tables
+          WHERE table_schema = 'public'
+            AND table_name IN (
+              'profiles', 'attendances', 'attendance_images', 'document_templates',
+              'generated_documents', 'agenda_events', 'exhumation_appointments',
+              'funeral_processes', 'funeral_deceased', 'funeral_documents',
+              'funeral_discrepancies', 'funeral_field_feedback', 'funeral_audit_log',
+              'extraction_locks'
+            );
+
+          SELECT count(*) AS private_buckets
+          FROM storage.buckets
+          WHERE public = false
+            AND id IN ('attendance-images', 'document-templates', 'generated-documents');
+          SQL
