@@ -1,0 +1,31 @@
+name: Diagnose PPS patch
+
+on:
+  push:
+    branches:
+      - fix/correct-sepultamento-jazigo-pps-flow
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract and run patch script
+        run: |
+          awk '
+            /python3 <<'"'"'PY'"'"'/ { capture=1; next }
+            capture && /^          PY$/ { capture=0; exit }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/patch-correct-pps-triage.yml > /tmp/patch.py
+          python3 /tmp/patch.py > .patch-output 2> .patch-error || true
+      - name: Commit diagnostics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .patch-output .patch-error
+          git commit -m "ci: registra erro da correção PPS"
+          git push
