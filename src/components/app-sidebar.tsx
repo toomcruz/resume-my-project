@@ -84,10 +84,11 @@ export function AppSidebar() {
                       asChild
                       isActive={active}
                       tooltip={item.title}
+                      size="lg"
                       className="data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground hover:bg-sidebar-accent/60"
                     >
                       <Link to={item.url} className="flex items-center gap-2.5">
-                        <item.icon className="h-4 w-4 shrink-0" />
+                        <item.icon className="h-5 w-5 shrink-0" />
                         <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
