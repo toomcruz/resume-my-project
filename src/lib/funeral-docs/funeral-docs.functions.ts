@@ -291,7 +291,14 @@ const ConfirmInput = z.object({
   campoPath: z.string(),
   valorCorreto: z.string(),
   valorExtraido: z.string().optional(),
-  tipoDocumento: z.enum(["DECLARACAO_DE_OBITO", "NOTA_DE_CONTRATACAO_FUNERAL", "CADASTRO_CONCESSIONARIO_GSCEMI", "DOCUMENTO_DESCONHECIDO"]).default("DOCUMENTO_DESCONHECIDO"),
+  tipoDocumento: z.enum([
+    "DECLARACAO_DE_OBITO",
+    "NOTA_DE_CONTRATACAO_FUNERAL",
+    "CADASTRO_CONCESSIONARIO_GSCEMI",
+    "CADASTRO_FALECIDO_SEPULTAMENTO_GSCEMI",
+    "DECLARANTES_SEPULTAMENTO_GSCEMI",
+    "DOCUMENTO_DESCONHECIDO",
+  ]).default("DOCUMENTO_DESCONHECIDO"),
 });
 
 export const confirmProcessField = createServerFn({ method: "POST" })
