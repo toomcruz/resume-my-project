@@ -46,19 +46,7 @@ export const PROCESSES: ProcessDef[] = [
       { value: "jazigo", label: "Jazigo" },
     ],
     extraFields: [
-      {
-        name: "tipo_agenda_exumacao",
-        label: "Agenda de destino",
-        type: "select",
-        section: "Agenda de exumação",
-        options: [
-          { value: "exumacao", label: "Agenda de Exumação" },
-          {
-            value: "exumacao_pss",
-            label: "Exumação para Pronto Sepultamento (PPS)",
-          },
-        ],
-      },
+
       {
         name: "data_agendada",
         label: "Data da exumação",
