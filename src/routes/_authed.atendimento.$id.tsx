@@ -119,21 +119,13 @@ function AttendanceDetail() {
     },
   });
 
-  const { data: images } = useQuery({
-    queryKey: ["attendance-images", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("attendance_images")
-        .select("id, storage_path, original_name")
-        .eq("attendance_id", id);
-      if (error) throw error;
-      return data;
-    },
-  });
-
   const { data: templates } = useQuery({
     queryKey: ["templates", att?.process, att?.subprocess],
-    enabled: !!att,
+    enabled: !!att?.process,
+    // process/subprocess mudam raramente para o mesmo atendimento; mantém
+    // fresco por 5 minutos para evitar refetches disparados pelo polling.
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("document_templates")
