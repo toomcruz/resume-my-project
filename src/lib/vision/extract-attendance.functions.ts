@@ -22,12 +22,25 @@ export const extractAttendanceVision = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
-    const { data: attendance, error: attendanceError } = await supabase
-      .from("attendances")
-      .select("id, process, subprocess, subprocess_details, extracted_data")
-      .eq("id", data.attendanceId)
-      .single();
-    if (attendanceError || !attendance) throw new Error("Atendimento não encontrado");
+    const { tryAcquireExtractionLock, releaseExtractionLock } = await import("./extraction-lock");
+
+    // Atomic lock: only one concurrent execution per attendance can
+    // proceed to the (expensive) AI pipeline. Losers return immediately.
+    const lock = await tryAcquireExtractionLock(
+      supabase as unknown as import("./extraction-lock").LockRpcClient,
+      data.attendanceId,
+    );
+    if (!lock) {
+      return { data: {}, meta: {}, state: null, errors: [], skipped: "locked" as const };
+    }
+
+    try {
+      const { data: attendance, error: attendanceError } = await supabase
+        .from("attendances")
+        .select("id, process, subprocess, subprocess_details, extracted_data")
+        .eq("id", data.attendanceId)
+        .single();
+      if (attendanceError || !attendance) throw new Error("Atendimento não encontrado");
 
     const { data: images, error: imageError } = await supabase
       .from("attendance_images")
@@ -168,5 +181,27 @@ export const extractAttendanceVision = createServerFn({ method: "POST" })
       // não bloqueia extração
     }
 
-    return { data: finalFlat, meta: finalMeta, state, errors };
+      await releaseExtractionLock(
+        supabase as unknown as import("./extraction-lock").LockRpcClient,
+        data.attendanceId,
+        lock.executionId,
+        "done",
+      );
+      return { data: finalFlat, meta: finalMeta, state, errors };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Mantém attendance.status = "error" mesmo se a extração travar.
+      await supabase
+        .from("attendances")
+        .update({ status: "error" })
+        .eq("id", data.attendanceId);
+      await releaseExtractionLock(
+        supabase as unknown as import("./extraction-lock").LockRpcClient,
+        data.attendanceId,
+        lock.executionId,
+        "error",
+        message.slice(0, 500),
+      );
+      throw err;
+    }
   });
