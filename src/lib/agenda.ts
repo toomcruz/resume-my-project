@@ -142,6 +142,12 @@ export function emptyAgendaDraft(agendaType: AgendaType, eventDate: string): Age
     pss_reference: "",
     status: "agendado",
     notes: "",
+    quadra_rua: "",
+    terreno: "",
+    gaveta: "",
+    arrival_time: "",
+    driver_name: "",
+    vehicle_plate: "",
   };
 }
 
