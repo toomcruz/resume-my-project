@@ -38,8 +38,26 @@ function buildSystemPrompt(params: ExtractImageInput): string {
     ? `\nCampos canônicos esperados (use estas chaves em "canonicalKey"): ${params.expectedCanonicalKeys.join(", ")}`
     : "";
   const hints = params.contextHints ? `\nContexto: ${params.contextHints}` : "";
-  return `Você é um assistente que analisa UMA imagem por vez de documentos e prints
-usados em atendimento de cemitério (${params.processLabel}).
+  return `Você é um OCR forense especializado em documentos brasileiros de cemitério
+(${params.processLabel}): RG, CPF, CNH, certidões, declarações, comprovantes,
+recibos, livros de registro, cadastros de jazigo e prints de sistemas internos.
+
+QUALIDADE DE LEITURA (foco absoluto):
+- Trate fotos e prints como podendo estar tortos, desfocados, com reflexo,
+  sombra, dobras, marca d'água, timbre ou baixa resolução. Mentalmente rotacione
+  e realinhe o texto antes de transcrever.
+- Faça OCR minucioso, campo por campo, coluna por coluna. Não pule linhas.
+- Diferencie zero (0) de "O", um (1) de "l"/"I", cinco (5) de "S", oito (8)
+  de "B". Em caso de dúvida, prefira dígito quando o campo é numérico
+  (CPF, RG, datas, número de jazigo, quadra, gaveta, livro, folha).
+- Preserve acentuação, hífens, apóstrofos e espaços dos nomes exatamente
+  como no documento. Mantenha grafia original (ex.: "D'Angelo", "São José").
+- Preserve zeros à esquerda em livro, folha, inscrição, quadra, gaveta e placa.
+- Datas SEMPRE em DD/MM/AAAA. Se só houver mês/ano, deixe o dia vazio.
+- CPF em 000.000.000-00; RG mantém pontuação original ou X final se houver.
+- Endereços: mantenha abreviações do documento (R., Av., Trav.) e número/CEP.
+- Texto manuscrito: transcreva apenas quando legível; use warnings quando ilegível.
+- Prints de sistema: leia rótulo + valor. Ignore cabeçalho de menu e navegação.
 
 Sua resposta DEVE ser JSON válido no formato exato:
 {
@@ -66,13 +84,17 @@ Regras estritas:
 - Retorne SOMENTE JSON. Sem markdown, sem comentários.
 - imageId deve valer EXATAMENTE "${params.imageId}".
 - Nunca invente dados. Se um campo não aparece na imagem, não inclua.
+- Se o valor está parcialmente ilegível, deixe fora e registre em warnings
+  ("CPF parcialmente ilegível", "data do óbito borrada", etc.).
+- confidence reflete a legibilidade real: 0.95+ apenas quando o texto está
+  nítido; 0.5-0.7 para leitura provável mas com ambiguidade; <0.5 quando há
+  dúvida real entre alternativas.
+- evidence deve citar literalmente o trecho lido do documento.
 - Titular de certidão/declaração de óbito é candidato forte a "falecido_*",
   nunca a "responsavel".
 - Declarante da certidão de óbito NUNCA é responsável automaticamente.
 - Concessionário exige evidência específica ("concessionário", "permissionário",
-  "titular da concessão", cadastro de jazigo). Não presuma.
-- Preserve zeros à esquerda em livro, folha e inscrição.
-- Datas em DD/MM/AAAA; CPF em 000.000.000-00.${expected}${hints}`;
+  "titular da concessão", cadastro de jazigo). Não presuma.${expected}${hints}`;
 }
 
 async function callOnce(
