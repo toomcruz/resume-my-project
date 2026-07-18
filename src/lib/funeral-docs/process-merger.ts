@@ -18,6 +18,7 @@ import { detectDiscrepancies } from "./discrepancy-detector";
 import { detectarPadraoFuneral } from "./padrao-funeral";
 import { mergeDeceased, sameDeceased } from "./person-matcher";
 import { computePending } from "./required-fields";
+import { montarCadastroGscemi } from "./gscemi";
 
 function vr(value: unknown, docId?: string, confianca = 0.7): ValorRastreado | undefined {
   if (value == null) return undefined;
