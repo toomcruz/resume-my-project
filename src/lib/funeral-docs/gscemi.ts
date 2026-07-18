@@ -250,11 +250,18 @@ function extractConcessao(d: Record<string, unknown>): DadosConcessao {
 
 function extractConcessionario(d: Record<string, unknown>): PessoaCadastral | undefined {
   const nome = str(d.nome_concessionario ?? d.nome);
-  if (!nome && !d.cpf_concessionario && !d.cpf) return undefined;
+  const cpf = str(d.cpf_concessionario ?? d.cpf);
+  const residencial = extractEndereco(d, "residencial") ?? extractEndereco(d, "");
+  const cobranca = extractEndereco(d, "cobranca");
+  const comercial = extractEndereco(d, "comercial");
+  const telefone1 = str(d.telefone_1 ?? d.telefone1 ?? d.telefone);
+  const celular = str(d.celular);
+  const email = str(d.email);
+  if (!nome && !cpf && !residencial && !cobranca && !comercial && !telefone1 && !celular && !email) return undefined;
   return {
     nome,
     nomeNormalizado: nome ? nameKey(nome) : undefined,
-    cpf: str(d.cpf_concessionario ?? d.cpf),
+    cpf,
     rg: str(d.rg_concessionario ?? d.rg),
     orgaoExpedidor: str(d.orgao_expedidor),
     dataNascimento: str(d.data_nascimento),
@@ -262,20 +269,20 @@ function extractConcessionario(d: Record<string, unknown>): PessoaCadastral | un
     estadoCivil: str(d.estado_civil),
     sexo: str(d.sexo),
     profissao: str(d.profissao),
-    telefone1: str(d.telefone_1 ?? d.telefone1 ?? d.telefone),
+    telefone1,
     telefone2: str(d.telefone_2 ?? d.telefone2),
-    celular: str(d.celular),
+    celular,
     fax: str(d.fax),
-    email: str(d.email),
+    email,
     nacionalidade: str(d.nacionalidade),
     localNascimento: str(d.local_nascimento),
     ufNascimento: str(d.uf_nascimento ?? d.uf),
     familia: str(d.familia),
     matricula: str(d.matricula),
     observacao: str(d.observacao),
-    enderecoResidencial: extractEndereco(d, "residencial") ?? extractEndereco(d, ""),
-    enderecoCobranca: extractEndereco(d, "cobranca"),
-    enderecoComercial: extractEndereco(d, "comercial"),
+    enderecoResidencial: residencial,
+    enderecoCobranca: cobranca,
+    enderecoComercial: comercial,
   };
 }
 
