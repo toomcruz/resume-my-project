@@ -1,0 +1,52 @@
+name: Apply PPS patch
+
+on:
+  push:
+    branches:
+      - fix/correct-sepultamento-jazigo-pps-flow
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Apply extracted patch
+        run: |
+          awk '
+            /python3 <<'"'"'PY'"'"'/ { capture=1; next }
+            capture && /^          PY$/ { capture=0; exit }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/patch-correct-pps-triage.yml > /tmp/patch.py
+          python3 /tmp/patch.py
+          bunx prettier --write \
+            src/lib/triagem-sepultamento.ts \
+            src/components/triagem-sepultamento.tsx \
+            src/lib/domain/context-adapter.ts \
+            src/lib/agenda-sync.ts \
+            src/routes/_authed.atendimento.novo.tsx \
+            src/lib/__tests__/triagem-sepultamento.test.ts \
+            src/lib/__tests__/agenda-sync.test.ts \
+            src/lib/domain/__tests__/context-adapter.test.ts
+      - name: Commit source changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/lib/triagem-sepultamento.ts \
+            src/components/triagem-sepultamento.tsx \
+            src/lib/domain/context-adapter.ts \
+            src/lib/agenda-sync.ts \
+            src/routes/_authed.atendimento.novo.tsx \
+            src/lib/__tests__/triagem-sepultamento.test.ts \
+            src/lib/__tests__/agenda-sync.test.ts \
+            src/lib/domain/__tests__/context-adapter.test.ts
+          git commit -m "fix: corrige triagem PPS do sepultamento em jazigo"
+          git push
