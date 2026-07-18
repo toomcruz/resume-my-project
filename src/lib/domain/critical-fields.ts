@@ -21,6 +21,17 @@ function normalizeKey(key: string): string {
   return key.toLowerCase().replace(/[_\-\s]+/g, "");
 }
 
+const AUTO_FILLED_KEYS = [
+  "data_atual",
+  "data_atual_extenso",
+  "dataAtual",
+  "dataAtualExtenso",
+  "dataExt",
+  "dataAt",
+  "dataContr",
+  "dataRec",
+];
+
 const NON_CRITICAL_KEYS = (() => {
   const set = new Set<string>();
   for (const def of FIELD_CATALOG) {
@@ -30,6 +41,7 @@ const NON_CRITICAL_KEYS = (() => {
       set.add(normalizeKey(alias));
     }
   }
+  for (const key of AUTO_FILLED_KEYS) set.add(normalizeKey(key));
   return set;
 })();
 
