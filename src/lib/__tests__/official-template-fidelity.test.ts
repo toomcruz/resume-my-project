@@ -9,7 +9,7 @@ import {
 // Pin approved original binaries and their visual layout.
 const OFFICIAL_TEMPLATE_HASHES: Record<string, string> = {
   "public/templates/official/sepultamento/ordem-sepultamento.docx":
-    "bde11413c4827c1ab05b66669b24deeb41066788a52219e0951cb90f6c46710c",
+    "7e9cc177b7af194cd146e0ef5291e80566f90613bed84d40af07c78366599147",
   "public/templates/official/exumacao/ordem-exumacao.docx":
     "37e6191a0397e6dd7a66d207180be1945fda1dbda3dd36ace0fb6aaea73d0fed",
   "public/templates/official/ossuario/aquisicao-renovacao-ossuario.docx":
