@@ -193,11 +193,10 @@ export function buildTemplatePayload(
       key = "nome_falecido_exumacao_pps";
     }
     let value = canonicalData[key];
-    // Data atual e por extenso são sempre calculadas pelo sistema (São Paulo, hoje).
-    if (!value || value.length === 0) {
-      if (key === "data_atual") value = autoDates.dataAtual;
-      else if (key === "data_atual_extenso") value = autoDates.dataAtualExtenso;
-    }
+    // Data atual e por extenso são SEMPRE calculadas pelo sistema (fuso São Paulo, hoje),
+    // ignorando qualquer valor extraído por OCR/foto que possa ter chegado em formato numérico.
+    if (key === "data_atual") value = autoDates.dataAtual;
+    else if (key === "data_atual_extenso") value = autoDates.dataAtualExtenso;
     if (typeof value === "string" && value.length > 0) {
       payload[placeholder] = value;
     } else {
