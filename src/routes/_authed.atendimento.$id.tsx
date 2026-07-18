@@ -72,6 +72,11 @@ function AttendanceDetail() {
   const generateFn = useServerFn(generateDocument);
   const signFn = useServerFn(getSignedUrl);
 
+  // Polling controlado: 5s enquanto extrai, cortado imediatamente ao chegar
+  // em qualquer status terminal, com timeout máximo de 120s.
+  const pollStartRef = useRef<number | null>(null);
+  const [extractTimedOut, setExtractTimedOut] = useState(false);
+
   const { data: att, isLoading } = useQuery({
     queryKey: ["attendance", id],
     queryFn: async () => {
@@ -81,7 +86,36 @@ function AttendanceDetail() {
     },
     refetchInterval: (query) => {
       const status = (query.state.data as { status?: string } | undefined)?.status;
-      return status === "extracting" ? 2000 : false;
+      const decision = decidePollInterval({
+        status,
+        startedAt: pollStartRef.current,
+        now: Date.now(),
+      });
+      pollStartRef.current = decision.startedAt;
+      if (decision.timedOut && !extractTimedOut) {
+        // agendar toggle fora do callback do react-query
+        queueMicrotask(() => setExtractTimedOut(true));
+      }
+      return decision.interval;
+    },
+  });
+
+  useEffect(() => {
+    if (!extractTimedOut) return;
+    toast.error(
+      "A extração demorou além do esperado. Verifique as imagens e use Re-extrair se necessário.",
+    );
+  }, [extractTimedOut]);
+
+  const { data: images } = useQuery({
+    queryKey: ["attendance-images", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("attendance_images")
+        .select("id, storage_path, original_name")
+        .eq("attendance_id", id);
+      if (error) throw error;
+      return data;
     },
   });
 
