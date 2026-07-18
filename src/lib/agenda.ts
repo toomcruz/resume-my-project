@@ -32,6 +32,12 @@ export interface AgendaEvent {
   pss_reference: string | null;
   status: AgendaStatus;
   notes: string | null;
+  quadra_rua: string | null;
+  terreno: string | null;
+  gaveta: string | null;
+  arrival_time: string | null;
+  driver_name: string | null;
+  vehicle_plate: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,7 +63,14 @@ export interface AgendaEventDraft {
   pss_reference: string;
   status: AgendaStatus;
   notes: string;
+  quadra_rua: string;
+  terreno: string;
+  gaveta: string;
+  arrival_time: string;
+  driver_name: string;
+  vehicle_plate: string;
 }
+
 
 export const AGENDA_TYPES: Array<{
   value: AgendaType;
@@ -130,6 +143,12 @@ export function emptyAgendaDraft(agendaType: AgendaType, eventDate: string): Age
     pss_reference: "",
     status: "agendado",
     notes: "",
+    quadra_rua: "",
+    terreno: "",
+    gaveta: "",
+    arrival_time: "",
+    driver_name: "",
+    vehicle_plate: "",
   };
 }
 
@@ -139,6 +158,7 @@ export function eventToDraft(event: AgendaEvent): AgendaEventDraft {
     event_date: event.event_date,
     start_time: trimTime(event.start_time),
     end_time: trimTime(event.end_time),
+
     deceased_name: event.deceased_name ?? "",
     responsible_name: event.responsible_name ?? "",
     registration_number: event.registration_number ?? "",
@@ -156,8 +176,15 @@ export function eventToDraft(event: AgendaEvent): AgendaEventDraft {
     pss_reference: event.pss_reference ?? "",
     status: event.status,
     notes: event.notes ?? "",
+    quadra_rua: event.quadra_rua ?? "",
+    terreno: event.terreno ?? "",
+    gaveta: event.gaveta ?? "",
+    arrival_time: trimTime(event.arrival_time),
+    driver_name: event.driver_name ?? "",
+    vehicle_plate: event.vehicle_plate ?? "",
   };
 }
+
 
 export function trimTime(value?: string | null): string {
   if (!value) return "";
