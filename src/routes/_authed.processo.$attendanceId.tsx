@@ -112,8 +112,6 @@ function ProcessoPage() {
 
   const processo = (data as { dados?: unknown } | null)?.dados as ProcessoFunerario | undefined;
 
-  const processo = (data as { dados?: ProcessoFunerario } | null)?.dados;
-
   const onSave = (path: string, value: string) => saveMut.mutate({ path, value });
 
   const pendentes = useMemo(() => processo?.camposPendentes ?? [], [processo]);
