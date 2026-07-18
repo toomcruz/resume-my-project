@@ -41,8 +41,8 @@ export function AppSidebar() {
           to="/dashboard"
           className="flex items-center gap-2.5 px-1 py-1.5 group-data-[collapsible=icon]:justify-center"
         >
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-            <FileText className="h-4 w-4" />
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
+            <FileText className="h-5 w-5" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
