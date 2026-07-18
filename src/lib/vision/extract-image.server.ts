@@ -101,6 +101,7 @@ async function callOnce(
   params: ExtractImageInput,
   attempt: number,
   deps: CallDeps,
+  model: string = MODEL_PRIMARY,
 ): Promise<ExtractImageOutcome> {
   const started = Date.now();
   const apiKey = deps.apiKey ?? process.env.LOVABLE_API_KEY;
@@ -111,7 +112,7 @@ async function callOnce(
 
   const userText =
     attempt === 0
-      ? `Analise a imagem e retorne o JSON descrito. imageId = "${params.imageId}".`
+      ? `Analise a imagem com OCR minucioso e retorne o JSON descrito. Leia CADA campo visível, inclusive rodapé, carimbos e anotações à mão. imageId = "${params.imageId}".`
       : `A resposta anterior não passou pelo validador. Retorne EXATAMENTE um JSON no formato descrito, sem texto ao redor. imageId = "${params.imageId}".`;
 
   let res: Response;
