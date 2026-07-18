@@ -317,6 +317,44 @@ export type Database = {
           },
         ]
       }
+      extraction_locks: {
+        Row: {
+          attendance_id: string
+          error_message: string | null
+          execution_id: string
+          expires_at: string
+          released_at: string | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          attendance_id: string
+          error_message?: string | null
+          execution_id?: string
+          expires_at: string
+          released_at?: string | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          attendance_id?: string
+          error_message?: string | null
+          execution_id?: string
+          expires_at?: string
+          released_at?: string | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extraction_locks_attendance_id_fkey"
+            columns: ["attendance_id"]
+            isOneToOne: true
+            referencedRelation: "attendances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       funeral_audit_log: {
         Row: {
           acao: string
@@ -664,7 +702,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      release_extraction_lock: {
+        Args: {
+          _attendance_id: string
+          _error_message?: string
+          _execution_id: string
+          _status: string
+        }
+        Returns: boolean
+      }
+      try_acquire_extraction_lock: {
+        Args: { _attendance_id: string; _ttl_seconds?: number }
+        Returns: {
+          execution_id: string
+          expires_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
