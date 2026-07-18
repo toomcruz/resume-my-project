@@ -244,7 +244,7 @@ function Templates() {
               <CardTitle>Modelos oficiais</CardTitle>
             </div>
             <CardDescription className="mt-1">
-              Arquivos versionados no repositório, com placeholders e regras já catalogados.
+              Arquivos originais preservados, com fonte, margens e estrutura oficiais.
             </CardDescription>
           </div>
           <Button

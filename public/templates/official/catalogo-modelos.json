@@ -68,11 +68,13 @@
       "parent",
       "placa",
       "quadraRua",
+      "rgResp",
       "salaVelorio",
       "telResp"
     ],
     "placeholderAliases": {
       "nomeRequerente": "nomeResp",
+      "rgRequerente": "rgResp",
       "cpfRequerente": "cpfResp",
       "enderecoRequerente": "endResp",
       "telefoneRequerente": "telResp",
@@ -93,8 +95,8 @@
       "dataAtual": "dataAtual"
     },
     "contextos": ["quadra_geral", "jazigo"],
-    "tamanhoBytes": 125631,
-    "sha256": "7538d74a7e5061e6c7c20b3b738195287a100461d74f473921c50a5283c4b504",
+    "tamanhoBytes": 127866,
+    "sha256": "bde11413c4827c1ab05b66669b24deeb41066788a52219e0951cb90f6c46710c",
     "paginas": 1
   },
   {
@@ -121,11 +123,13 @@
       "parent",
       "placa",
       "quadraRua",
+      "rgResp",
       "sepultura",
       "telResp"
     ],
     "placeholderAliases": {
       "nomeRequerente": "nomeResp",
+      "rgRequerente": "rgResp",
       "cpfRequerente": "cpfResp",
       "enderecoRequerente": "endResp",
       "telefoneRequerente": "telResp",
@@ -143,8 +147,8 @@
       "dataAtual": "dataAtual"
     },
     "contextos": ["quadra_geral", "jazigo"],
-    "tamanhoBytes": 131900,
-    "sha256": "67590c4365a9ee0a211b554b55c001439a7d52ad387db6f21211d85da001e751",
+    "tamanhoBytes": 134008,
+    "sha256": "37e6191a0397e6dd7a66d207180be1945fda1dbda3dd36ace0fb6aaea73d0fed",
     "paginas": 1
   },
   {
@@ -201,13 +205,10 @@
       "dataExt",
       "dataVencimento",
       "endConc",
-      "folha",
       "inscrGS",
-      "livro",
       "nomeConc",
       "nomeFal",
       "numeroOssuario",
-      "placa",
       "telConc"
     ],
     "placeholderAliases": {
@@ -221,14 +222,11 @@
       "dataAquisicaoRenovacao": "dataAquisicao",
       "dataVencimento": "dataVencimento",
       "inscricaoGS": "inscrGS",
-      "placaIdentificacao": "placa",
-      "livro": "livro",
-      "folha": "folha",
       "dataAtualExtenso": "dataExt"
     },
     "contextos": ["aluguel", "aquisicao", "renovacao"],
-    "tamanhoBytes": 153841,
-    "sha256": "89600d39dc2ed036d149ce35b64108f42b029ca0d83301fb85d9849e290595b8",
+    "tamanhoBytes": 160373,
+    "sha256": "069a775cf6f80a72c6dacefd9e1b1eeb7a64be2e89dd95a55fcc70a5c032d256",
     "paginas": 1
   },
   {
@@ -354,8 +352,8 @@
       "proximaRenovacao": "proxRen"
     },
     "contextos": ["responsavel", "endereco", "dados_concessao", "dados_jazigo", "outro"],
-    "tamanhoBytes": 46248,
-    "sha256": "8f589f2ee0d23ab022c9854d45872029e4a726c0ceb1f622503e565eb8cd57bb",
+    "tamanhoBytes": 60852,
+    "sha256": "35a4a5f9b67e43bc14ba3cc1a7cc7a3d2a440e990bc0dc8a4f176aba771979dd",
     "paginas": 1
   }
 ]

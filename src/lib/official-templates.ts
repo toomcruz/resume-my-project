@@ -103,7 +103,7 @@ export function getOfficialInstallVariants(
         storageId: `${item.id}-jazigo`,
         name: "OFICIAL · Ordem de Sepultamento · Jazigo",
         process: "sepultamento",
-        file: "sepultamento/ordem-sepultamento-jazigo.docx",
+        file: item.arquivo,
         contexts: ["jazigo"],
       }),
     ];
@@ -122,7 +122,7 @@ export function getOfficialInstallVariants(
         storageId: `${item.id}-jazigo`,
         name: "OFICIAL · Ordem de Exumação · Jazigo",
         process: "exumacao",
-        file: "exumacao/ordem-exumacao-jazigo.docx",
+        file: item.arquivo,
         contexts: ["jazigo"],
       }),
     ];
@@ -141,7 +141,7 @@ export function getOfficialInstallVariants(
         storageId: `${item.id}-renovacao`,
         name: "OFICIAL · Ossuário · Renovação",
         process: "ossario",
-        file: "ossuario/renovacao-ossuario.docx",
+        file: item.arquivo,
         contexts: ["renovacao"],
       }),
     ];
