@@ -124,7 +124,7 @@ async function callOnce(
         "Lovable-API-Key": apiKey,
       },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         messages: [
           { role: "system", content: buildSystemPrompt(params) },
           {
