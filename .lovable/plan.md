@@ -1,73 +1,93 @@
-# Triagem acelerada por botões — Ordem de Sepultamento
+## Objetivo
 
-Reduzir a digitação da triagem transformando os campos-chave em botões, salvando as escolhas em `subprocess_details` (mesma estrutura já existente) e reaproveitando esses dados na geração do DOCX.
+Adicionar ao Scanne um módulo que classifica documentos (Declaração de Óbito, Nota de Contratação, Desconhecido), extrai campos estruturados por tipo, funde tudo num único `ProcessoFunerario`, detecta divergências e oferece uma tela de conferência lado-a-lado. Sem remover nada do fluxo atual — o novo módulo vive ao lado do pipeline de vision existente e é opt-in por atendimento.
 
-## Escopo (só o processo Sepultamento)
+## Escopo e princípios
 
-Nenhuma outra jornada (Exumação, Ossário, Translado, Atualização Cadastral) é tocada.
+- Reaproveitar: `extractFromImages` (gateway IA), `attendance_images`, `attendances`, `document-templates`, `requireSupabaseAuth`, Zod, TanStack Query, shadcn/ui, tokens semânticos.
+- Não tocar: `client.ts`, `client.server.ts`, `auth-*`, `types.ts`, `.env`, regras já validadas de triagem/sepultamento/exumação, geração de DOCX, agenda.
+- Segurança: RLS + GRANTs em toda tabela nova; nenhum CPF/RG em log; buckets já privados; URLs assinadas.
 
-## 1. UI — `src/routes/_authed.atendimento.novo.tsx`
+## Arquivos a criar
 
-Nova seção "Triagem rápida" (só quando `processKey === "sepultamento"`), substituindo os inputs livres correspondentes, na ordem:
+**Domínio / serviços (`src/lib/funeral-docs/`)**
+- `types.ts` — `ProcessoFunerario`, `Falecido`, `Responsavel`, `Contratante`, `DadosSepultamento`, `DadosVelorio`, `DadosContratacao`, `ItemContratado`, `Divergencia`, `DocumentoFonte`, `PadraoFuneral`, enums.
+- `normalizers.ts` — nome, CPF, RG, telefone, data, hora, moeda, parentesco. Guarda `{ original, normalized, confidence }`.
+- `document-classifier.ts` — classifica por título + keywords + campos. Retorna `{ tipo, confianca, motivo, alternativas }`. Baixa confiança → `DOCUMENTO_DESCONHECIDO`.
+- `extractors/death-declaration.ts` — schema Zod + prompt específico para Declaração de Óbito (todos os grupos da §3).
+- `extractors/funeral-contract.ts` — schema Zod + prompt para Nota de Contratação (§4).
+- `padrao-funeral.ts` — classifica PADRÃO/LUXO/SUPER_LUXO/CREMAÇÃO/DOADOR/GRATUITO a partir dos itens (§5). Nunca por valor.
+- `person-matcher.ts` — dedup de falecido por nome normalizado + nascimento + óbito + CPF + mãe + nº DO.
+- `process-merger.ts` — funde documentos num único `ProcessoFunerario` respeitando prioridades (§6). Não sobrescreve; correção manual > OCR.
+- `discrepancy-detector.ts` — compara campos entre docs, gera `Divergencia[]` com status PENDENTE.
+- `required-fields.ts` — config central de obrigatórios por tipo de processo (sepultamento, exumação — este permite 2 falecidos).
+- `feedback-store.ts` — registra correção manual (tipo doc, campo, original, extraído, correto, coordenadas, modelo, data).
 
-1. **Local do sepultamento** — dois botões grandes: `QUADRA GERAL` / `JAZIGO`. Grava em `subprocess` (já existente). Ao selecionar, também grava em `extras`:
-   - `QUADRA GERAL` → `concessao="NAO"`, `quadra_geral_gaveta="SIM"`
-   - `JAZIGO` → `concessao="SIM"`, `quadra_geral_gaveta="NAO"`
-2. **Data do sepultamento** — botões `HOJE`, `AMANHÃ`, `+2 DIAS`, `OUTRA DATA` (Popover + shadcn Calendar). Preenche `data_agendada` em ISO e exibe abaixo em `DD/MM/AAAA`.
-3. **Horário do sepultamento** — botões `10:00 … 17:00`, seleção única, grava `hora_sepultamento`.
-4. **Sala do velório** — botões `A`,`B`,`C`,`D`,`E`,`F`,`SEM VELÓRIO`. Grava `sala_velorio` com a letra; `SEM VELÓRIO` grava string vazia + flag `sem_velorio="SIM"`.
-5. **Placa de identificação** — Input editável + botão `LER DO PRINT` (abre file input aceitando 1 imagem). Chama nova server fn `readPlacaFromImage` que reusa `extractFromImages` (`fields:["placa_identificacao"]`, contexto "Placa de identificação"). Mostra "Placa encontrada: XXXXX" + `CONFIRMAR`/`CORRIGIR`. Só grava em `placa_identificacao` após confirmar; se falhar, mantém edição manual. Não obrigatória.
+**Server functions (`src/lib/funeral-docs/*.functions.ts`)**
+- `classify-and-extract.functions.ts` — recebe `attendanceId`, baixa `attendance_images`, roda classifier + extractor apropriado por imagem, persiste em `funeral_documents` + `funeral_processes`, retorna processo consolidado. Middleware `requireSupabaseAuth`. Zod input. Timeout 20s por imagem, sequencial com `Promise.allSettled` limitado.
+- `confirm-field.functions.ts` — grava correção manual (prevalece sobre OCR) e loga em `funeral_field_feedback`.
+- `resolve-discrepancy.functions.ts` — resolve divergência (CONFIRMADO/DESCARTADO + valor final).
 
-Botão destacado usa `variant="default"` quando selecionado, `variant="outline"` caso contrário.
+**UI (`src/routes/_authed.processo.$id.tsx` + componentes)**
+- Rota nova, não interfere no atendimento atual — link opcional a partir do card do atendimento.
+- `src/components/funeral-docs/DocumentViewer.tsx` — lado esquerdo: imagem/PDF, zoom, rotação, navegação, highlight de região (se disponível).
+- `src/components/funeral-docs/FieldsPanel.tsx` — lado direito, seções: Falecido, Responsável, Contratante, Sepultamento, Velório, Contratação, Itens, Pendências, Divergências.
+- `src/components/funeral-docs/FieldRow.tsx` — valor, origem, confiança, badge de estado (verde/amarelo/vermelho/cinza), botões localizar/editar/confirmar.
+- `src/components/funeral-docs/DiscrepancyDialog.tsx` — resolve divergência manualmente.
+- Framer Motion suave, tokens semânticos, mobile-first (viewer vira acordeão em <md).
 
-### Validação de "Confirmar triagem"
+## Banco de dados (migration única)
 
-Antes de avançar para upload:
-- `subprocess` presente,
-- `data_agendada` presente,
-- `hora_sepultamento` presente,
-- `sala_velorio` OU `sem_velorio="SIM"` presente.
+- `funeral_processes` — id, user_id, attendance_id (FK opcional), tipo_processo, status, dados_json, created_at, updated_at.
+- `funeral_deceased` — id, process_id (FK cascade), papel ('principal' | 'exumado' | 'relacionado'), dados_json (nome, CPF, mãe, nascimento, óbito etc).
+- `funeral_documents` — id, process_id, attendance_image_id (FK), tipo_documento, classificacao_confianca, dados_extraidos_json, created_at.
+- `funeral_discrepancies` — id, process_id, campo, valor_a, valor_b, doc_a_id, doc_b_id, confianca, sugestao, valor_final, status ('PENDENTE'|'CONFIRMADO'|'DESCARTADO'), resolvido_por, resolvido_em.
+- `funeral_field_feedback` — id, user_id, process_id, tipo_documento, campo, valor_extraido, valor_correto, coordenadas_json, modelo, created_at.
+- `funeral_audit_log` — id, user_id, process_id, acao, payload_json (mascarado), created_at.
 
-Placa não bloqueia. Mensagens via `toast.error`.
+Cada tabela: `GRANT SELECT,INSERT,UPDATE,DELETE ... TO authenticated; GRANT ALL ... TO service_role;` + RLS `auth.uid() = user_id` (ou via join com process → user). Sem grant para `anon`.
 
-## 2. Persistência
+## Testes (`__tests__/`)
 
-Tudo já vive em `subprocess`/`subprocess_details` (colunas existentes em `attendances`). Nenhuma migration nova. Ao voltar ao atendimento (`_authed.atendimento.$id.tsx`), os valores continuam disponíveis via `att.subprocess_details`.
+Um por regra crítica da §14:
+- classificação DO / Nota / desconhecido
+- dedup de falecido (mesmo em 2 docs)
+- exumação com 2 falecidos e papéis distintos
+- declarante = responsável principal
+- contratante ≠ declarante
+- grau de parentesco do declarante
+- extração nº contratação
+- padrão do funeral por itens (não por valor)
+- divergência de datas / nomes
+- campo ausente / baixa confiança
+- correção manual prevalece
+- normalizadores (CPF, nome, data, moeda, parentesco)
+- CPF/RG nunca aparecem em logs (spy no logger)
 
-## 3. Integração com DOCX
+Dados sempre anonimizados/fictícios.
 
-Em `src/lib/attendances.functions.ts` (generateDocument), ao montar o `data` do placeholder para `ordem-sepultamento`, priorizar valores de `subprocess_details` sobre `extracted_data` para as chaves-alvo:
+## Segurança
 
-- `sala_velorio`, `data_sepultamento` ← `data_agendada`, `horario_sepultamento` ← `hora_sepultamento`, `placa_identificacao` (só se confirmada).
-- Novos placeholders só se já existirem no modelo: `concessao`, `quadra_geral_gaveta`. Se o modelo não declara o placeholder, é ignorado silenciosamente (`nullGetter` já retorna `""`).
+- RLS obrigatório em todas as tabelas novas.
+- `funeral_audit_log` grava payload mascarado (CPF `***.***.***-XX`, RG parcial).
+- Nenhum `console.log` de campo sensível; wrapper `logSafe()` em `funeral-docs/logger.ts`.
+- URLs de imagem sempre via `createSignedUrl` (300s) reusando `getSignedUrl`.
+- Buckets já privados — não alterar.
 
-Placeholders já existentes (ver `template-payload.ts` para `ordem-sepultamento`): `nomeFal, sala, dataSep, horaSep, placa`, etc. — mapear os novos `concessao` / `quadra_geral_gaveta` **apenas se o template oficial declarar**; senão fica no-op.
+## Detalhes técnicos
 
-## 4. Fonte/formatação DOCX
+- Extractors: um `createServerFn` por tipo, mas ambos delegam a `extractFromImages` com `response_format: json_object` e schema Zod específico. Prompt inclui lista de campos exatos.
+- Merger é puro (sem I/O) → 100% testável.
+- `ProcessoFunerario` guardado como JSON em `funeral_processes.dados_json` + colunas indexadas para busca (nome, cpf hash).
+- Nenhuma nova dependência npm — usa `zod`, `@supabase/*`, `framer-motion`, `lucide-react` já instalados.
 
-Sem mudança de estilo automático — o `fillDocx` atual não reduz fonte. Apenas garantir `paragraphLoop: true` (já ativo) e `linebreaks: true` (já ativo) permitem quebra em nomes longos.
+## Entrega
 
-## 5. Testes (`vitest`)
+- Rodar `bun run lint`, `bunx vitest run`, build automático do harness.
+- Listar arquivos alterados + migration criada + limitações do OCR (dependência do gateway, campos manuscritos, imagens de baixa resolução).
+- Não publicar, não fazer deploy.
 
-Novo arquivo `src/lib/__tests__/triagem-sepultamento.test.ts` cobrindo helpers puros:
+## Fora de escopo (confirmar depois)
 
-- `applyLocalSepultamento("quadra_geral")` → `{ concessao:"NAO", quadra_geral_gaveta:"SIM" }`
-- `applyLocalSepultamento("jazigo")` → `{ concessao:"SIM", quadra_geral_gaveta:"NAO" }`
-- `computeQuickDate("hoje"|"amanha"|"+2")` retornam datas corretas
-- validação de triagem falha sem sala e sem `sem_velorio`
-- placa não confirmada não aparece no payload
-
-## 6. Arquivos alterados
-
-- `src/lib/triagem-sepultamento.ts` (novo) — helpers puros: `LOCAL_SEPULTAMENTO_MAP`, `computeQuickDate`, `HORARIOS`, `SALAS`, `validateTriagem`.
-- `src/lib/__tests__/triagem-sepultamento.test.ts` (novo).
-- `src/lib/vision/read-placa.functions.ts` (novo) — server fn `readPlacaFromImage(base64)` chamando `extractFromImages`.
-- `src/routes/_authed.atendimento.novo.tsx` — renderiza `<TriagemSepultamento/>` quando processo é sepultamento; oculta os campos livres equivalentes já existentes.
-- `src/lib/attendances.functions.ts` — merge `subprocess_details` no payload do modelo, sem sobrescrever campos já preenchidos manualmente na revisão.
-
-## 7. Restrições respeitadas
-
-- Sem alteração em autenticação, RLS, edge functions, ou outros modelos.
-- Sem nova tabela.
-- Sem publicação.
-- Ao final: `bun test`, `bun run typecheck`, `bun run build` (o harness roda automaticamente).
+- OCR de coordenadas por caractere (highlight preciso) — versão 1 destaca a imagem inteira do doc de origem; bounding boxes ficam para v2.
+- Aprendizado automático — só coleta de feedback, sem retraining.

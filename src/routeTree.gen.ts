@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedModelosRouteImport } from './routes/_authed.modelos'
 import { Route as AuthedDashboardRouteImport } from './routes/_authed.dashboard'
 import { Route as AuthedAgendaRouteImport } from './routes/_authed.agenda'
+import { Route as AuthedProcessoAttendanceIdRouteImport } from './routes/_authed.processo.$attendanceId'
 import { Route as AuthedAtendimentoNovoRouteImport } from './routes/_authed.atendimento.novo'
 import { Route as AuthedAtendimentoIdRouteImport } from './routes/_authed.atendimento.$id'
 
@@ -47,6 +48,12 @@ const AuthedAgendaRoute = AuthedAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedProcessoAttendanceIdRoute =
+  AuthedProcessoAttendanceIdRouteImport.update({
+    id: '/processo/$attendanceId',
+    path: '/processo/$attendanceId',
+    getParentRoute: () => AuthedRoute,
+  } as any)
 const AuthedAtendimentoNovoRoute = AuthedAtendimentoNovoRouteImport.update({
   id: '/atendimento/novo',
   path: '/atendimento/novo',
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/modelos': typeof AuthedModelosRoute
   '/atendimento/$id': typeof AuthedAtendimentoIdRoute
   '/atendimento/novo': typeof AuthedAtendimentoNovoRoute
+  '/processo/$attendanceId': typeof AuthedProcessoAttendanceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,6 +83,7 @@ export interface FileRoutesByTo {
   '/modelos': typeof AuthedModelosRoute
   '/atendimento/$id': typeof AuthedAtendimentoIdRoute
   '/atendimento/novo': typeof AuthedAtendimentoNovoRoute
+  '/processo/$attendanceId': typeof AuthedProcessoAttendanceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,6 +95,7 @@ export interface FileRoutesById {
   '/_authed/modelos': typeof AuthedModelosRoute
   '/_authed/atendimento/$id': typeof AuthedAtendimentoIdRoute
   '/_authed/atendimento/novo': typeof AuthedAtendimentoNovoRoute
+  '/_authed/processo/$attendanceId': typeof AuthedProcessoAttendanceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/modelos'
     | '/atendimento/$id'
     | '/atendimento/novo'
+    | '/processo/$attendanceId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/modelos'
     | '/atendimento/$id'
     | '/atendimento/novo'
+    | '/processo/$attendanceId'
   id:
     | '__root__'
     | '/'
@@ -116,6 +128,7 @@ export interface FileRouteTypes {
     | '/_authed/modelos'
     | '/_authed/atendimento/$id'
     | '/_authed/atendimento/novo'
+    | '/_authed/processo/$attendanceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -168,6 +181,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAgendaRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/processo/$attendanceId': {
+      id: '/_authed/processo/$attendanceId'
+      path: '/processo/$attendanceId'
+      fullPath: '/processo/$attendanceId'
+      preLoaderRoute: typeof AuthedProcessoAttendanceIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/atendimento/novo': {
       id: '/_authed/atendimento/novo'
       path: '/atendimento/novo'
@@ -191,6 +211,7 @@ interface AuthedRouteChildren {
   AuthedModelosRoute: typeof AuthedModelosRoute
   AuthedAtendimentoIdRoute: typeof AuthedAtendimentoIdRoute
   AuthedAtendimentoNovoRoute: typeof AuthedAtendimentoNovoRoute
+  AuthedProcessoAttendanceIdRoute: typeof AuthedProcessoAttendanceIdRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
@@ -199,6 +220,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedModelosRoute: AuthedModelosRoute,
   AuthedAtendimentoIdRoute: AuthedAtendimentoIdRoute,
   AuthedAtendimentoNovoRoute: AuthedAtendimentoNovoRoute,
+  AuthedProcessoAttendanceIdRoute: AuthedProcessoAttendanceIdRoute,
 }
 
 const AuthedRouteWithChildren =
