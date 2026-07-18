@@ -181,5 +181,27 @@ export const extractAttendanceVision = createServerFn({ method: "POST" })
       // não bloqueia extração
     }
 
-    return { data: finalFlat, meta: finalMeta, state, errors };
+      await releaseExtractionLock(
+        supabase as unknown as import("./extraction-lock").LockRpcClient,
+        data.attendanceId,
+        lock.executionId,
+        "done",
+      );
+      return { data: finalFlat, meta: finalMeta, state, errors };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Mantém attendance.status = "error" mesmo se a extração travar.
+      await supabase
+        .from("attendances")
+        .update({ status: "error" })
+        .eq("id", data.attendanceId);
+      await releaseExtractionLock(
+        supabase as unknown as import("./extraction-lock").LockRpcClient,
+        data.attendanceId,
+        lock.executionId,
+        "error",
+        message.slice(0, 500),
+      );
+      throw err;
+    }
   });
