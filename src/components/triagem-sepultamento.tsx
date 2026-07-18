@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarIcon, Loader2, Sparkles, Upload } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, ArrowRight, CalendarIcon, Check, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,37 +27,48 @@ interface TriagemSepultamentoProps {
   onExtrasChange: (patch: Record<string, string>) => void;
 }
 
-function BtnChip({
+function Chip({
   selected,
   onClick,
   children,
   className,
-  type = "button",
 }: {
   selected: boolean;
   onClick: () => void;
   children: React.ReactNode;
   className?: string;
-  type?: "button" | "submit";
 }) {
   return (
     <button
-      type={type}
+      type="button"
       onClick={onClick}
       className={cn(
-        "rounded-md border px-4 py-3 text-sm font-medium transition-colors",
-        "hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "group relative rounded-xl border px-4 py-4 text-sm font-semibold transition-all",
+        "hover:-translate-y-0.5 hover:border-primary hover:shadow-md",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         selected
-          ? "border-primary bg-primary text-primary-foreground shadow-sm"
-          : "border-input bg-background hover:bg-accent",
+          ? "border-primary bg-primary text-primary-foreground shadow-lg"
+          : "border-input bg-background text-foreground",
         className,
       )}
       aria-pressed={selected}
     >
       {children}
+      {selected && (
+        <Check className="absolute right-2 top-2 h-3.5 w-3.5 opacity-90" strokeWidth={3} />
+      )}
     </button>
   );
 }
+
+type StepId =
+  | "local"
+  | "data"
+  | "horario"
+  | "velorio"
+  | "sala"
+  | "detalhes_velorio"
+  | "placa";
 
 export function TriagemSepultamento({
   subprocess,
@@ -88,6 +100,28 @@ export function TriagemSepultamento({
   const [reading, setReading] = useState(false);
   const [placaEncontrada, setPlacaEncontrada] = useState<string | null>(null);
 
+  const steps: StepId[] = useMemo(() => {
+    const base: StepId[] = ["local", "data", "horario", "velorio"];
+    if (state.tem_velorio === "SIM") base.push("sala", "detalhes_velorio");
+    base.push("placa");
+    return base;
+  }, [state.tem_velorio]);
+
+  const [stepIndex, setStepIndex] = useState(0);
+  useEffect(() => {
+    if (stepIndex >= steps.length) setStepIndex(steps.length - 1);
+  }, [steps.length, stepIndex]);
+
+  const step = steps[stepIndex];
+  const isLast = stepIndex >= steps.length - 1;
+
+  function next() {
+    if (!isLast) setStepIndex((i) => i + 1);
+  }
+  function prev() {
+    if (stepIndex > 0) setStepIndex((i) => i - 1);
+  }
+
   function pickLocal(local: "quadra_geral" | "jazigo") {
     onSubprocessChange(local);
     const derived = applyLocalSepultamento(local);
@@ -95,10 +129,12 @@ export function TriagemSepultamento({
       concessao: derived.concessao,
       quadra_geral_gaveta: derived.quadra_geral_gaveta,
     });
+    next();
   }
 
   function pickQuickDate(choice: "hoje" | "amanha" | "mais2") {
     onExtrasChange({ data_agendada: computeQuickDate(choice) });
+    next();
   }
 
   function pickCalendarDate(date: Date | undefined) {
@@ -107,18 +143,28 @@ export function TriagemSepultamento({
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
     onExtrasChange({ data_agendada: `${y}-${m}-${d}` });
+    next();
   }
 
   function pickHorario(horario: string) {
     onExtrasChange({ hora_sepultamento: horario });
+    next();
   }
 
   function pickWakeChoice(value: "SIM" | "NAO") {
     if (value === "SIM") {
       onExtrasChange({ tem_velorio: "SIM", sem_velorio: "" });
-      return;
+    } else {
+      onExtrasChange({
+        tem_velorio: "NAO",
+        sem_velorio: "SIM",
+        sala_velorio: "",
+        inicio_velorio: "",
+        fim_velorio: "",
+      });
     }
-    onExtrasChange({ tem_velorio: "NAO", sem_velorio: "SIM" });
+    // Use timeout so `steps` recomputes with new tem_velorio before we advance.
+    setTimeout(() => setStepIndex((i) => i + 1), 0);
   }
 
   function pickSala(letra: string) {
@@ -127,6 +173,7 @@ export function TriagemSepultamento({
       tem_velorio: "SIM",
       sem_velorio: "",
     });
+    next();
   }
 
   function updatePlacaText(value: string) {
@@ -164,257 +211,314 @@ export function TriagemSepultamento({
     toast.success("Placa confirmada");
   }
 
-  function corrigirPlaca() {
-    if (!placaEncontrada) return;
-    onExtrasChange({ placa_identificacao: placaEncontrada, placa_confirmada: "" });
-    setPlacaEncontrada(null);
-  }
+  const stepLabels: Record<StepId, string> = {
+    local: "Local do sepultamento",
+    data: "Data",
+    horario: "Horário",
+    velorio: "Haverá velório?",
+    sala: "Sala do velório",
+    detalhes_velorio: "Detalhes do velório",
+    placa: "Placa de identificação",
+  };
 
   return (
-    <div className="space-y-6">
-      <section className="space-y-2">
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-          Local do sepultamento
-        </Label>
-        <div className="grid grid-cols-2 gap-2">
-          <BtnChip
-            selected={state.subprocess === "quadra_geral"}
-            onClick={() => pickLocal("quadra_geral")}
-          >
-            QUADRA GERAL
-          </BtnChip>
-          <BtnChip selected={state.subprocess === "jazigo"} onClick={() => pickLocal("jazigo")}>
-            JAZIGO
-          </BtnChip>
+    <div className="space-y-5">
+      {/* Progress */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-medium uppercase tracking-wide text-muted-foreground">
+            Passo {stepIndex + 1} de {steps.length}
+          </span>
+          <span className="text-muted-foreground">{stepLabels[step]}</span>
         </div>
-      </section>
-
-      <section className="space-y-2">
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">Data</Label>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <BtnChip
-            selected={state.data_agendada === computeQuickDate("hoje")}
-            onClick={() => pickQuickDate("hoje")}
-          >
-            HOJE
-          </BtnChip>
-          <BtnChip
-            selected={state.data_agendada === computeQuickDate("amanha")}
-            onClick={() => pickQuickDate("amanha")}
-          >
-            AMANHÃ
-          </BtnChip>
-          <BtnChip
-            selected={state.data_agendada === computeQuickDate("mais2")}
-            onClick={() => pickQuickDate("mais2")}
-          >
-            +2 DIAS
-          </BtnChip>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  "inline-flex items-center justify-center gap-2 rounded-md border px-4 py-3 text-sm font-medium transition-colors",
-                  "border-input bg-background hover:border-primary hover:bg-accent",
-                )}
-              >
-                <CalendarIcon className="h-4 w-4" /> OUTRA DATA
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={
-                  state.data_agendada ? new Date(`${state.data_agendada}T00:00`) : undefined
-                }
-                onSelect={pickCalendarDate}
-                initialFocus
-                className={cn("pointer-events-auto p-3")}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-        {state.data_agendada && (
-          <p className="text-sm text-muted-foreground">
-            Data escolhida:{" "}
-            <span className="font-medium text-foreground">
-              {formatIsoToBr(state.data_agendada)}
-            </span>
-          </p>
-        )}
-      </section>
-
-      <section className="space-y-2">
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">Horário</Label>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {HORARIOS_SEPULTAMENTO.map((horario) => (
-            <BtnChip
-              key={horario}
-              selected={state.hora_sepultamento === horario}
-              onClick={() => pickHorario(horario)}
-            >
-              {horario}
-            </BtnChip>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-2">
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-          Placa de identificação
-        </Label>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
-            value={state.placa_identificacao ?? ""}
-            onChange={(event) => updatePlacaText(event.target.value)}
-            placeholder="Digite ou leia do print"
-            aria-label="Placa de identificação"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => fileRef.current?.click()}
-            disabled={reading}
-            className="shrink-0 gap-2"
-          >
-            {reading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            LER DO PRINT
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void handleReadPlaca(file);
-            }}
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <motion.div
+            className="h-full rounded-full bg-primary"
+            initial={false}
+            animate={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
+            transition={{ type: "spring", stiffness: 200, damping: 25 }}
           />
         </div>
-        {placaEncontrada && (
-          <div className="space-y-2 rounded-md border bg-muted/40 p-3">
-            <div className="text-sm">
-              Placa encontrada: <span className="font-semibold">{placaEncontrada}</span>
-            </div>
-            <div className="flex gap-2">
-              <Button type="button" size="sm" onClick={confirmarPlaca}>
-                CONFIRMAR
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={corrigirPlaca}>
-                CORRIGIR
-              </Button>
-            </div>
-          </div>
-        )}
-        {state.placa_confirmada === "SIM" && state.placa_identificacao && !placaEncontrada && (
-          <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <Upload className="h-3 w-3" /> Placa confirmada — será usada no documento.
-          </p>
-        )}
-      </section>
+      </div>
 
-      <section className="space-y-3 rounded-lg border bg-muted/20 p-4">
-        <div>
-          <Label className="text-base font-semibold">Haverá velório?</Label>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Os dados da agenda só aparecem quando houver velório.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <BtnChip
-            selected={state.tem_velorio === "SIM"}
-            onClick={() => pickWakeChoice("SIM")}
-            className="text-left"
-          >
-            <span className="block">SIM</span>
-            <span className="block text-xs font-normal opacity-80">
-              Velório seguido de sepultamento
-            </span>
-          </BtnChip>
-          <BtnChip
-            selected={state.tem_velorio === "NAO"}
-            onClick={() => pickWakeChoice("NAO")}
-            className="text-left"
-          >
-            <span className="block">NÃO</span>
-            <span className="block text-xs font-normal opacity-80">Somente sepultamento</span>
-          </BtnChip>
-        </div>
-      </section>
-
-      {state.tem_velorio === "SIM" && (
-        <section className="space-y-5 rounded-lg border border-primary/20 bg-primary/5 p-4">
-          <div>
-            <h3 className="font-semibold">Dados para a Agenda Geral</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Ao concluir o atendimento, o velório e o sepultamento serão vinculados automaticamente
-              à agenda. Preencha apenas as informações disponíveis.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-              Sala do velório
-            </Label>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {SALAS_VELORIO.map((sala) => (
-                <BtnChip
-                  key={sala}
-                  selected={state.sala_velorio === sala}
-                  onClick={() => pickSala(sala)}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.18 }}
+          className="min-h-[220px]"
+        >
+          {step === "local" && (
+            <section className="space-y-3">
+              <Label className="text-base font-semibold">Onde será o sepultamento?</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Chip
+                  selected={state.subprocess === "quadra_geral"}
+                  onClick={() => pickLocal("quadra_geral")}
+                  className="py-6"
                 >
-                  {sala}
-                </BtnChip>
-              ))}
-            </div>
-          </div>
+                  QUADRA GERAL
+                </Chip>
+                <Chip
+                  selected={state.subprocess === "jazigo"}
+                  onClick={() => pickLocal("jazigo")}
+                  className="py-6"
+                >
+                  JAZIGO
+                </Chip>
+              </div>
+            </section>
+          )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="inicio_velorio">Início do velório</Label>
-              <Input
-                id="inicio_velorio"
-                type="time"
-                value={extras.inicio_velorio ?? ""}
-                onChange={(event) => onExtrasChange({ inicio_velorio: event.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fim_velorio">Fim do velório</Label>
-              <Input
-                id="fim_velorio"
-                type="time"
-                value={extras.fim_velorio ?? ""}
-                onChange={(event) => onExtrasChange({ fim_velorio: event.target.value })}
-              />
-            </div>
-          </div>
+          {step === "data" && (
+            <section className="space-y-3">
+              <Label className="text-base font-semibold">Data do sepultamento</Label>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Chip
+                  selected={state.data_agendada === computeQuickDate("hoje")}
+                  onClick={() => pickQuickDate("hoje")}
+                >
+                  HOJE
+                </Chip>
+                <Chip
+                  selected={state.data_agendada === computeQuickDate("amanha")}
+                  onClick={() => pickQuickDate("amanha")}
+                >
+                  AMANHÃ
+                </Chip>
+                <Chip
+                  selected={state.data_agendada === computeQuickDate("mais2")}
+                  onClick={() => pickQuickDate("mais2")}
+                >
+                  +2 DIAS
+                </Chip>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        "inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-4 text-sm font-semibold transition-all",
+                        "border-input bg-background hover:-translate-y-0.5 hover:border-primary hover:shadow-md",
+                      )}
+                    >
+                      <CalendarIcon className="h-4 w-4" /> OUTRA
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={
+                        state.data_agendada ? new Date(`${state.data_agendada}T00:00`) : undefined
+                      }
+                      onSelect={pickCalendarDate}
+                      initialFocus
+                      className={cn("pointer-events-auto p-3")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {state.data_agendada && (
+                <p className="text-sm text-muted-foreground">
+                  Selecionado:{" "}
+                  <span className="font-medium text-foreground">
+                    {formatIsoToBr(state.data_agendada)}
+                  </span>
+                </p>
+              )}
+            </section>
+          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="local_sepultamento">Local do sepultamento</Label>
-            <Input
-              id="local_sepultamento"
-              value={extras.local_sepultamento ?? ""}
-              onChange={(event) => onExtrasChange({ local_sepultamento: event.target.value })}
-              placeholder="Quadra, terreno, gaveta ou jazigo"
-            />
-          </div>
+          {step === "horario" && (
+            <section className="space-y-3">
+              <Label className="text-base font-semibold">Horário do sepultamento</Label>
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                {HORARIOS_SEPULTAMENTO.map((horario) => (
+                  <Chip
+                    key={horario}
+                    selected={state.hora_sepultamento === horario}
+                    onClick={() => pickHorario(horario)}
+                  >
+                    {horario}
+                  </Chip>
+                ))}
+              </div>
+            </section>
+          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="funeraria">Funerária / agência</Label>
-            <Input
-              id="funeraria"
-              value={extras.funeraria ?? ""}
-              onChange={(event) => onExtrasChange({ funeraria: event.target.value })}
-            />
-          </div>
-        </section>
-      )}
+          {step === "velorio" && (
+            <section className="space-y-3">
+              <Label className="text-base font-semibold">Haverá velório?</Label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Chip
+                  selected={state.tem_velorio === "SIM"}
+                  onClick={() => pickWakeChoice("SIM")}
+                  className="py-6 text-left"
+                >
+                  <span className="block text-base">SIM</span>
+                  <span className="block text-xs font-normal opacity-80">
+                    Velório seguido de sepultamento
+                  </span>
+                </Chip>
+                <Chip
+                  selected={state.tem_velorio === "NAO"}
+                  onClick={() => pickWakeChoice("NAO")}
+                  className="py-6 text-left"
+                >
+                  <span className="block text-base">NÃO</span>
+                  <span className="block text-xs font-normal opacity-80">
+                    Somente sepultamento
+                  </span>
+                </Chip>
+              </div>
+            </section>
+          )}
+
+          {step === "sala" && (
+            <section className="space-y-3">
+              <Label className="text-base font-semibold">Sala do velório</Label>
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+                {SALAS_VELORIO.map((sala) => (
+                  <Chip
+                    key={sala}
+                    selected={state.sala_velorio === sala}
+                    onClick={() => pickSala(sala)}
+                    className="py-6 text-lg"
+                  >
+                    {sala}
+                  </Chip>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {step === "detalhes_velorio" && (
+            <section className="space-y-4">
+              <Label className="text-base font-semibold">Detalhes do velório (opcional)</Label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="inicio_velorio">Início</Label>
+                  <Input
+                    id="inicio_velorio"
+                    type="time"
+                    value={extras.inicio_velorio ?? ""}
+                    onChange={(e) => onExtrasChange({ inicio_velorio: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fim_velorio">Fim</Label>
+                  <Input
+                    id="fim_velorio"
+                    type="time"
+                    value={extras.fim_velorio ?? ""}
+                    onChange={(e) => onExtrasChange({ fim_velorio: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="funeraria">Funerária / agência</Label>
+                <Input
+                  id="funeraria"
+                  value={extras.funeraria ?? ""}
+                  onChange={(e) => onExtrasChange({ funeraria: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="local_sepultamento">Local (quadra / jazigo / gaveta)</Label>
+                <Input
+                  id="local_sepultamento"
+                  value={extras.local_sepultamento ?? ""}
+                  onChange={(e) => onExtrasChange({ local_sepultamento: e.target.value })}
+                />
+              </div>
+            </section>
+          )}
+
+          {step === "placa" && (
+            <section className="space-y-3">
+              <Label className="text-base font-semibold">
+                Placa de identificação (opcional)
+              </Label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={state.placa_identificacao ?? ""}
+                  onChange={(event) => updatePlacaText(event.target.value)}
+                  placeholder="Digite ou leia do print"
+                  aria-label="Placa de identificação"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={reading}
+                  className="shrink-0 gap-2"
+                >
+                  {reading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  LER DO PRINT
+                </Button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void handleReadPlaca(file);
+                  }}
+                />
+              </div>
+              {placaEncontrada && (
+                <div className="space-y-2 rounded-md border bg-muted/40 p-3">
+                  <div className="text-sm">
+                    Placa encontrada: <span className="font-semibold">{placaEncontrada}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" onClick={confirmarPlaca}>
+                      CONFIRMAR
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPlacaEncontrada(null)}
+                    >
+                      DESCARTAR
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Navigation */}
+      <div className="flex items-center justify-between border-t pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={prev}
+          disabled={stepIndex === 0}
+          className="gap-1"
+        >
+          <ArrowLeft className="h-4 w-4" /> Voltar
+        </Button>
+        {!isLast && (step === "detalhes_velorio" || step === "placa") && (
+          <Button type="button" onClick={next} className="gap-1">
+            Avançar <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
+        {isLast && (
+          <span className="text-xs text-muted-foreground">
+            Triagem completa — clique em <span className="font-semibold">Continuar</span> abaixo.
+          </span>
+        )}
+      </div>
     </div>
   );
 }
