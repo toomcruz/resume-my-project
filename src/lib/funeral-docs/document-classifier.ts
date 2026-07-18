@@ -42,6 +42,31 @@ const NOTA_KEYWORDS = [
   "Total",
 ];
 
+const GSCEMI_KEYWORDS = [
+  "GSCEMI",
+  "Cadastro de Concessionário",
+  "Cadastro de Concessionario",
+  "Concessionário",
+  "Concessionario",
+  "Inscrição",
+  "Inscricao",
+  "Quadra",
+  "Jazigo",
+  "Filial",
+  "Grupo",
+  "T.Venda",
+  "Tipo de Venda",
+  "Cadastrado por",
+  "Data Cadastro",
+  "Dependentes",
+  "Manutenção",
+  "Contratos",
+  "Concessionário Cadastrado",
+  "QUADRA GERAL",
+  "COMUNITARIO",
+  "COMUNITÁRIO",
+];
+
 function scoreKeywords(text: string, keywords: string[]): number {
   const upper = text.toUpperCase();
   let hits = 0;
@@ -55,11 +80,13 @@ export function classifyDocument(input: ClassificationInput): ClassificationResu
   const text = input.ocrText ?? Object.values(input.extractedFields ?? {}).join(" ");
   const doScore = scoreKeywords(text, DO_KEYWORDS);
   const notaScore = scoreKeywords(text, NOTA_KEYWORDS);
+  const gscemiScore = scoreKeywords(text, GSCEMI_KEYWORDS);
 
   const ranked: Array<{ tipo: TipoDocumento; confianca: number }> = (
     [
       { tipo: "DECLARACAO_DE_OBITO" as TipoDocumento, confianca: doScore },
       { tipo: "NOTA_DE_CONTRATACAO_FUNERAL" as TipoDocumento, confianca: notaScore },
+      { tipo: "CADASTRO_CONCESSIONARIO_GSCEMI" as TipoDocumento, confianca: gscemiScore },
     ]
   ).sort((a, b) => b.confianca - a.confianca);
 
@@ -79,3 +106,4 @@ export function classifyDocument(input: ClassificationInput): ClassificationResu
     alternativas: ranked.slice(1),
   };
 }
+
