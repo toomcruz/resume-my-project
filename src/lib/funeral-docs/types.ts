@@ -133,7 +133,11 @@ export interface DocumentoFonte {
   tipoDocumento: TipoDocumento;
   attendanceImageId?: string;
   classificacaoConfianca: number;
-  dadosExtraidos: Record<string, string>;
+  // Valores lidos do OCR; usamos `any` porque alguns campos são arrays
+  // (itens, ordens_servico) e outros objetos (pagamento). O merger sabe
+  // interpretar cada um.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dadosExtraidos: Record<string, any>;
 }
 
 export interface Divergencia {
