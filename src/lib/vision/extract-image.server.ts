@@ -346,8 +346,8 @@ export async function extractSingleImage(
       params,
       "verification",
       deps,
-      MODEL_PRIMARY,
-      TIMEOUT_PRIMARY_MS,
+      MODEL_VERIFY,
+      TIMEOUT_VERIFY_MS,
       first.data,
     );
     if (verify.ok) {
