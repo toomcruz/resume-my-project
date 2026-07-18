@@ -17,21 +17,25 @@ export type Database = {
       agenda_events: {
         Row: {
           agenda_type: string
+          arrival_time: string | null
           attendance_id: string | null
           burial_location: string | null
           burial_time: string | null
           created_at: string
           deceased_name: string | null
           destination: string | null
+          driver_name: string | null
           end_time: string | null
           event_date: string
           family_present: boolean | null
           funeral_home: string | null
+          gaveta: string | null
           id: string
           location: string | null
           notes: string | null
           payment_date: string | null
           pss_reference: string | null
+          quadra_rua: string | null
           registration_number: string | null
           responsible_name: string | null
           result_status: string | null
@@ -39,26 +43,32 @@ export type Database = {
           service: string | null
           start_time: string | null
           status: string
+          terreno: string | null
           updated_at: string
           user_id: string
+          vehicle_plate: string | null
         }
         Insert: {
           agenda_type: string
+          arrival_time?: string | null
           attendance_id?: string | null
           burial_location?: string | null
           burial_time?: string | null
           created_at?: string
           deceased_name?: string | null
           destination?: string | null
+          driver_name?: string | null
           end_time?: string | null
           event_date: string
           family_present?: boolean | null
           funeral_home?: string | null
+          gaveta?: string | null
           id?: string
           location?: string | null
           notes?: string | null
           payment_date?: string | null
           pss_reference?: string | null
+          quadra_rua?: string | null
           registration_number?: string | null
           responsible_name?: string | null
           result_status?: string | null
@@ -66,26 +76,32 @@ export type Database = {
           service?: string | null
           start_time?: string | null
           status?: string
+          terreno?: string | null
           updated_at?: string
           user_id: string
+          vehicle_plate?: string | null
         }
         Update: {
           agenda_type?: string
+          arrival_time?: string | null
           attendance_id?: string | null
           burial_location?: string | null
           burial_time?: string | null
           created_at?: string
           deceased_name?: string | null
           destination?: string | null
+          driver_name?: string | null
           end_time?: string | null
           event_date?: string
           family_present?: boolean | null
           funeral_home?: string | null
+          gaveta?: string | null
           id?: string
           location?: string | null
           notes?: string | null
           payment_date?: string | null
           pss_reference?: string | null
+          quadra_rua?: string | null
           registration_number?: string | null
           responsible_name?: string | null
           result_status?: string | null
@@ -93,8 +109,10 @@ export type Database = {
           service?: string | null
           start_time?: string | null
           status?: string
+          terreno?: string | null
           updated_at?: string
           user_id?: string
+          vehicle_plate?: string | null
         }
         Relationships: [
           {
