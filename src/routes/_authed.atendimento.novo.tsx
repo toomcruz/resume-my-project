@@ -388,12 +388,27 @@ function NewAttendance() {
                     });
                     if (errs.length) return toast.error(errs[0]);
                   }
+                  if (
+                    processKey === "exumacao" &&
+                    subprocess === "jazigo" &&
+                    !extras.tipo_agenda_exumacao
+                  ) {
+                    return toast.error(
+                      "Informe se há gaveta disponível no jazigo para escolher a agenda.",
+                    );
+                  }
                   setStep("upload");
                 }}
-                disabled={!!proc.subprocessOptions && !subprocess}
+                disabled={
+                  (!!proc.subprocessOptions && !subprocess) ||
+                  (processKey === "exumacao" &&
+                    subprocess === "jazigo" &&
+                    !extras.tipo_agenda_exumacao)
+                }
               >
                 Continuar <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
+
             </div>
           </CardContent>
         </Card>
