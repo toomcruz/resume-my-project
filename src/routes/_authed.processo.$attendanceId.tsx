@@ -275,9 +275,9 @@ function ProcessoPage() {
                   </div>
                   {d.id && (
                     <div className="flex gap-2 pt-1">
-                      <Button size="sm" variant="outline" onClick={() => resolveDisc({ data: { discrepancyId: d.id!, status: "CONFIRMADO", valorFinal: d.valorA } }).then(() => refetch())}>Manter A</Button>
-                      <Button size="sm" variant="outline" onClick={() => resolveDisc({ data: { discrepancyId: d.id!, status: "CONFIRMADO", valorFinal: d.valorB } }).then(() => refetch())}>Manter B</Button>
-                      <Button size="sm" variant="ghost" onClick={() => resolveDisc({ data: { discrepancyId: d.id!, status: "DESCARTADO" } }).then(() => refetch())}>Descartar</Button>
+                      <Button size="sm" variant="outline" onClick={() => resolveMut.mutate({ id: d.id!, status: "CONFIRMADO", valorFinal: d.valorA })}>Manter A</Button>
+                      <Button size="sm" variant="outline" onClick={() => resolveMut.mutate({ id: d.id!, status: "CONFIRMADO", valorFinal: d.valorB })}>Manter B</Button>
+                      <Button size="sm" variant="ghost" onClick={() => resolveMut.mutate({ id: d.id!, status: "DESCARTADO" })}>Descartar</Button>
                     </div>
                   )}
                 </div>
