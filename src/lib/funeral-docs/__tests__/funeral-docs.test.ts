@@ -469,3 +469,202 @@ describe("logSafe mascara dados sensíveis", () => {
     expect(String(masked)).not.toContain("999.888.777-66");
   });
 });
+
+// ---------- GSCEMI: Cadastro do Falecido / Sepultamento + Declarantes ----------
+describe("GSCEMI — Cadastro do Sepultamento", () => {
+  const sepDoc: DocumentoFonte = {
+    id: "sep-1",
+    tipoDocumento: "CADASTRO_FALECIDO_SEPULTAMENTO_GSCEMI",
+    classificacaoConfianca: 0.9,
+    dadosExtraidos: {
+      numero_registro_sepultamento: "117049",
+      numero_sepultado: "8390",
+      inscricao: "170931080",
+      numero_registro_do: "01-000000000",
+      pro_aim: "AAA",
+      tem_plano_funerario: "NAO",
+      nome_falecido: "PESSOA FICTICIA",
+      sexo: "FEMININO",
+      parentesco: "TITULAR",
+      sepultamento: "1",
+      cremacao: "0",
+      tanatopraxia: "0",
+      cartorio_sepultamento: "SANTANA",
+      distrito_sepultamento: "8",
+      livro_sepultamento: "69",
+      pagina_sepultamento: "47",
+      nota_fiscal: "0",
+      termo_numero_controle: "118988",
+      tem_lapide: "SIM",
+      situacao_sepultado: "CORPO INTEIRO",
+      codigo_cemiterio: "1002",
+      nome_cemiterio: "CEMITERIO SANTANA",
+      nome_concessionario: "PESSOA FICTICIA TESTE",
+      concessionaria_responsavel: "CONSOLARE",
+      seguradora_parceiro: "OUTROS",
+      data_sepultamento: "18/07/2026",
+    },
+  };
+
+  it("classifica a tela por palavras-chave", () => {
+    const r = classifyDocument({
+      ocrText:
+        "Tipo de Sepultamento Nome Falecido Nº Registro / D.O PRO-AIM Tem plano funerário Tanatopraxia Tem Lápide Termo/Nº Controle Livro sepultamento Página sepultamento Cartório Sepultamento Situação do Sepultado",
+    });
+    expect(r.tipo).toBe("CADASTRO_FALECIDO_SEPULTAMENTO_GSCEMI");
+  });
+
+  it("extrai inscrição, sepultado, livro, página e Termo/Nº Controle separadamente", () => {
+    const p = mergeProcess([sepDoc]);
+    const c = p.cadastroSepultamentoGscemi!;
+    expect(c).toBeTruthy();
+    expect(c.inscricaoGscemi).toBe("170931080");
+    expect(c.numeroSepultado).toBe("8390");
+    expect(c.registroLivro?.livro).toBe("69");
+    expect(c.registroLivro?.pagina).toBe("47");
+    expect(c.placaIdentificacao?.termoNumeroControle).toBe("118988");
+    expect(c.placaIdentificacao?.numeroPlacaIdentificacao).toBe("118988");
+  });
+
+  it("preserva parentescoCadastroSepultamento sem copiar para outros papéis", () => {
+    const p = mergeProcess([sepDoc]);
+    expect(p.cadastroSepultamentoGscemi?.parentescoCadastroSepultamento).toBe("TITULAR");
+    expect(p.responsavelPrincipal?.grauParentesco?.normalized).toBeUndefined();
+  });
+
+  it("não confunde placa com inscrição, DO ou contratação", () => {
+    const p = mergeProcess([sepDoc]);
+    const c = p.cadastroSepultamentoGscemi!;
+    expect(c.placaIdentificacao?.numeroPlacaIdentificacao).not.toBe(c.inscricaoGscemi);
+    expect(c.placaIdentificacao?.numeroPlacaIdentificacao).not.toBe(c.numeroDeclaracaoObito);
+    expect(c.placaIdentificacao?.numeroPlacaIdentificacao).not.toBe(c.numeroContrato ?? "");
+    expect(c.placaIdentificacao?.numeroPlacaIdentificacao).not.toBe(c.numeroSepultado);
+    expect(c.registroLivro?.livro).not.toBe(c.registroLivro?.pagina);
+  });
+
+  it("alerta quando livro existe mas página não", () => {
+    const semPag: DocumentoFonte = {
+      ...sepDoc,
+      id: "sep-2",
+      dadosExtraidos: { ...sepDoc.dadosExtraidos, pagina_sepultamento: "" },
+    };
+    const p = mergeProcess([semPag]);
+    expect(p.cadastroSepultamentoGscemi?.alertas.some((a) => /página ausente/i.test(a.mensagem))).toBe(true);
+  });
+
+  it("guarda cada opção de procedimento separadamente", () => {
+    const p = mergeProcess([sepDoc]);
+    const proc = p.cadastroSepultamentoGscemi?.tipoProcedimento!;
+    expect(proc.sepultamento).toBe(true);
+    expect(proc.cremacao).toBe(false);
+    expect(proc.tanatopraxia).toBe(false);
+  });
+
+  it("detecta divergência de data de sepultamento com Nota de Contratação", () => {
+    const nota: DocumentoFonte = {
+      id: "nota-x",
+      tipoDocumento: "NOTA_DE_CONTRATACAO_FUNERAL",
+      classificacaoConfianca: 0.9,
+      dadosExtraidos: { data_sepultamento: "19/07/2026" },
+    };
+    const p = mergeProcess([nota, sepDoc]);
+    expect(
+      p.cadastroSepultamentoGscemi?.alertas.some((a) => /Data do sepultamento diverge/i.test(a.mensagem)),
+    ).toBe(true);
+  });
+});
+
+describe("GSCEMI — Declarantes (óbito + pagamento)", () => {
+  const iguais: DocumentoFonte = {
+    id: "decl-1",
+    tipoDocumento: "DECLARANTES_SEPULTAMENTO_GSCEMI",
+    classificacaoConfianca: 0.9,
+    dadosExtraidos: {
+      nome_declarante_obito: "PESSOA FICTICIA TESTE",
+      cpf_declarante_obito: "111.222.333-44",
+      tipo_pessoa_declarante_obito: "Física",
+      cep_declarante_obito: "02866-230",
+      logradouro_declarante_obito: "RUA FICTICIA",
+      numero_declarante_obito: "200",
+      bairro_declarante_obito: "BAIRRO",
+      cidade_declarante_obito: "SAO PAULO",
+      uf_declarante_obito: "SP",
+      telefone_declarante_obito: "11999999999",
+      nome_declarante_pagamento: "PESSOA FICTICIA TESTE",
+      cpf_declarante_pagamento: "111.222.333-44",
+      origem_dados_declarante_pagamento: "DECLARANTE_OBITO",
+    },
+  };
+
+  it("classifica a tela de declarantes", () => {
+    const r = classifyDocument({
+      ocrText:
+        "DECLARANTE DO ÓBITO DECLARANTE DO PAGAMENTO DADOS PESSOAIS Importar do declarante do óbito Importar do adm. provisório Tipo Pessoa Física Jurídica Código IBGE",
+    });
+    expect(r.tipo).toBe("DECLARANTES_SEPULTAMENTO_GSCEMI");
+  });
+
+  it("mesma pessoa nas duas seções mantém papéis separados e sinaliza importação", () => {
+    const p = mergeProcess([iguais]);
+    expect(p.declaranteObitoGscemi?.papel).toBe("DECLARANTE_DO_OBITO_GSCEMI");
+    expect(p.declarantePagamento?.papel).toBe("DECLARANTE_DO_PAGAMENTO");
+    expect(p.declaranteObitoGscemi?.cpf).toBe("111.222.333-44");
+    expect(p.declarantePagamento?.cpf).toBe("111.222.333-44");
+    expect(p.declarantePagamento?.origemDadosDeclarantePagamento).toBe("DECLARANTE_OBITO");
+  });
+
+  it("pessoas diferentes nas duas seções ficam separadas", () => {
+    const diff: DocumentoFonte = {
+      ...iguais,
+      id: "decl-2",
+      dadosExtraidos: {
+        ...iguais.dadosExtraidos,
+        nome_declarante_pagamento: "OUTRA PESSOA FICTICIA",
+        cpf_declarante_pagamento: "555.666.777-88",
+        origem_dados_declarante_pagamento: "PREENCHIMENTO_MANUAL",
+      },
+    };
+    const p = mergeProcess([diff]);
+    expect(p.declaranteObitoGscemi?.cpf).not.toBe(p.declarantePagamento?.cpf);
+    expect(p.declarantePagamento?.origemDadosDeclarantePagamento).toBe("PREENCHIMENTO_MANUAL");
+  });
+
+  it("pagamento importado do administrador provisório é registrado", () => {
+    const admDoc: DocumentoFonte = {
+      ...iguais,
+      id: "decl-3",
+      dadosExtraidos: {
+        ...iguais.dadosExtraidos,
+        nome_declarante_pagamento: "DEPENDENTE FICTICIO",
+        cpf_declarante_pagamento: "222.333.444-55",
+        origem_dados_declarante_pagamento: "ADMINISTRADOR_PROVISORIO",
+      },
+    };
+    const p = mergeProcess([admDoc]);
+    expect(p.declarantePagamento?.origemDadosDeclarantePagamento).toBe("ADMINISTRADOR_PROVISORIO");
+    // adm provisório NÃO vira declarante do óbito
+    expect(p.declaranteObitoGscemi?.nome).toBe("PESSOA FICTICIA TESTE");
+    expect(p.declaranteObitoGscemi?.nome).not.toBe("DEPENDENTE FICTICIO");
+  });
+
+  it("as duas telas se juntam no mesmo processo", () => {
+    const sepDoc2: DocumentoFonte = {
+      id: "sep-3",
+      tipoDocumento: "CADASTRO_FALECIDO_SEPULTAMENTO_GSCEMI",
+      classificacaoConfianca: 0.9,
+      dadosExtraidos: {
+        inscricao: "170931080",
+        nome_falecido: "PESSOA FICTICIA",
+        livro_sepultamento: "69",
+        pagina_sepultamento: "47",
+        termo_numero_controle: "118988",
+        sepultamento: "1",
+      },
+    };
+    const p = mergeProcess([sepDoc2, iguais]);
+    expect(p.cadastroSepultamentoGscemi?.inscricaoGscemi).toBe("170931080");
+    expect(p.declaranteObitoGscemi?.nome).toBe("PESSOA FICTICIA TESTE");
+    expect(p.declarantePagamento?.nome).toBe("PESSOA FICTICIA TESTE");
+  });
+});
+
