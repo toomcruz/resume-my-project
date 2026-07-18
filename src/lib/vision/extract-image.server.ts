@@ -213,8 +213,8 @@ export async function extractSingleImage(
     if (second.ok) return second;
   }
 
-  // Fallback para modelo Flash quando o Pro falha por HTTP transitório
-  // (5xx, timeout, indisponibilidade) — mantém a extração funcional.
+  // Fallback para modelo Pro quando o Flash falha por HTTP transitório
+  // (5xx, timeout, indisponibilidade) — leitura mais robusta em recuperação.
   const httpFallback = /HTTP 5\d\d|falha de rede|timeout|indisponí|unavailable/i.test(first.error);
   if (httpFallback) {
     const fallback = await callOnce(params, 0, deps, MODEL_FALLBACK);
