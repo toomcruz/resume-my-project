@@ -204,7 +204,7 @@ export const classifyAndExtractProcess = createServerFn({ method: "POST" })
       },
     });
 
-    return { processId: processId!, processo: JSON.parse(JSON.stringify(processo)) as string | null };
+    return { processId: processId!, processoJson: JSON.stringify(processo) };
   });
 
 // -------- Confirmar/corrigir um campo específico --------
