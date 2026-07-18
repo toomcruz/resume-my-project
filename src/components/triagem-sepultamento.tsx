@@ -147,7 +147,11 @@ export function TriagemSepultamento({
   }
 
   function pickHorario(horario: string) {
-    onExtrasChange({ hora_sepultamento: horario });
+    // Horário do sepultamento = fim do velório (regra do negócio).
+    // Propaga automaticamente para fim_velorio se ainda estiver vazio.
+    const patch: Record<string, string> = { hora_sepultamento: horario };
+    if (!extras.fim_velorio?.trim()) patch.fim_velorio = horario;
+    onExtrasChange(patch);
     next();
   }
 
@@ -407,13 +411,17 @@ export function TriagemSepultamento({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="fim_velorio">Fim</Label>
+                  <Label htmlFor="fim_velorio">Fim (= horário do sepultamento)</Label>
                   <Input
                     id="fim_velorio"
                     type="time"
-                    value={extras.fim_velorio ?? ""}
+                    value={extras.fim_velorio ?? extras.hora_sepultamento ?? ""}
                     onChange={(e) => onExtrasChange({ fim_velorio: e.target.value })}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Preenchido automaticamente com o horário do sepultamento — altere só se
+                    o velório terminar em horário diferente.
+                  </p>
                 </div>
               </div>
               <div className="space-y-2">
