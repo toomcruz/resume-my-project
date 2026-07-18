@@ -350,31 +350,6 @@ export function DocumentReview({
   );
 }
 
-function SummaryLine({
-  color,
-  label,
-  value,
-}: {
-  color: "destructive" | "amber" | "emerald";
-  label: string;
-  value: number;
-}) {
-  const dot =
-    color === "destructive"
-      ? "bg-destructive"
-      : color === "amber"
-        ? "bg-amber-500"
-        : "bg-emerald-500";
-  return (
-    <div className="flex items-center justify-between">
-      <span className="inline-flex items-center gap-2 text-muted-foreground">
-        <span className={cn("h-2 w-2 rounded-full", dot)} />
-        {label}
-      </span>
-      <span className="font-medium">{value}</span>
-    </div>
-  );
-}
 
 function StatusPill({ status, compact }: { status: GroupStatus; compact?: boolean }) {
   if (status === "opcional_vazio") return null;
