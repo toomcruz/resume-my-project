@@ -65,6 +65,12 @@ export function rowToAgendaEvent(row: Row): AgendaEvent {
     pss_reference: row.pss_reference,
     status: row.status as AgendaStatus,
     notes: row.notes,
+    quadra_rua: null,
+    terreno: null,
+    gaveta: null,
+    arrival_time: null,
+    driver_name: null,
+    vehicle_plate: null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
