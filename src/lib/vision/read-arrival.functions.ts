@@ -45,6 +45,8 @@ export const readArrivalFromImage = createServerFn({ method: "POST" })
       imageDataUrls: [data.imageDataUrl],
       fields: ["arrival_time", "driver_name", "vehicle_plate"],
       processLabel: "Chegada do corpo (print de mensagem)",
+      model: "google/gemini-2.5-flash-lite",
+      timeoutMs: 12000,
       contextHints:
         "A imagem é um print de conversa/mensagem informando a chegada de um corpo ao cemitério. " +
         "Extraia: `arrival_time` no formato HH:MM 24h (converta '9h30', '09:30hs', '9:30 da manhã'); " +

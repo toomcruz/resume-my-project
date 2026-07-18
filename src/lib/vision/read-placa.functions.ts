@@ -28,6 +28,8 @@ export const readPlacaFromImage = createServerFn({ method: "POST" })
       imageDataUrls: [data.imageDataUrl],
       fields: ["placa_identificacao"],
       processLabel: "Placa de identificação",
+      model: "google/gemini-2.5-flash-lite",
+      timeoutMs: 12000,
       contextHints:
         "Extraia APENAS o número da placa de identificação do jazigo/gaveta exibido na imagem. " +
         "Se não houver um número claro, retorne string vazia. Nunca invente.",
