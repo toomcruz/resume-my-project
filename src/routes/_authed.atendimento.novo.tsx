@@ -90,8 +90,22 @@ function NewAttendance() {
   function selectProcess(key: string) {
     setProcessKey(key);
     setSubprocess("");
+    // Exumação em quadra geral já vai direto para a agenda normal.
+    // Em jazigo o operador precisa antes responder se há gaveta disponível.
     setExtras(key === "exumacao" ? { tipo_agenda_exumacao: "exumacao" } : {});
     setStep("details");
+  }
+
+  function chooseExumacaoSubprocess(value: string) {
+    setSubprocess(value);
+    if (processKey === "exumacao") {
+      setExtras((current) => ({
+        ...current,
+        // Quadra geral nunca é PSS. Em jazigo limpamos a escolha para exigir
+        // a resposta explícita sobre disponibilidade de gaveta.
+        tipo_agenda_exumacao: value === "quadra_geral" ? "exumacao" : "",
+      }));
+    }
   }
 
   function updateExtra(name: string, value: string) {
@@ -101,6 +115,7 @@ function NewAttendance() {
   function updateExtras(patch: Record<string, string>) {
     setExtras((current) => ({ ...current, ...patch }));
   }
+
 
   const isSepultamento = processKey === "sepultamento";
 
