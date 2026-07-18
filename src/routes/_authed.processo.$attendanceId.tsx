@@ -93,22 +93,58 @@ function ProcessoPage() {
   const confirmField = useServerFn(confirmProcessField);
   const resolveDisc = useServerFn(resolveDiscrepancy);
 
+  const qc = useQueryClient();
+  const queryKey = ["funeral-process", attendanceId] as const;
+
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["funeral-process", attendanceId],
+    queryKey,
     queryFn: () => getProc({ data: { attendanceId } }),
+    staleTime: 30_000,
   });
 
   const runMut = useMutation({
     mutationFn: async () => runExtract({ data: { attendanceId, tipoProcesso: "sepultamento" } }),
-    onSuccess: () => { toast.success("Documentos classificados e extraídos"); refetch(); router.invalidate(); },
+    onSuccess: () => {
+      toast.success("Documentos classificados e extraídos");
+      // Uma única invalidação silenciosa cobre a conferência final após a
+      // extração — evita `refetch()` + `router.invalidate()` simultâneos.
+      qc.invalidateQueries({ queryKey });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const saveMut = useMutation({
     mutationFn: async (vars: { path: string; value: string }) =>
       confirmField({ data: { processId: (data as { id: string }).id, campoPath: vars.path, valorCorreto: vars.value } }),
-    onSuccess: () => { toast.success("Correção registrada"); refetch(); },
+    onSuccess: () => {
+      toast.success("Correção registrada");
+      qc.invalidateQueries({ queryKey });
+    },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  type ProcQueryData = { id: string; dados?: unknown } | null;
+
+  const resolveMut = useMutation({
+    mutationFn: async (vars: { id: string; status: "CONFIRMADO" | "DESCARTADO"; valorFinal?: string }) =>
+      resolveDisc({ data: { discrepancyId: vars.id, status: vars.status, valorFinal: vars.valorFinal } }),
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueryData<ProcQueryData>(queryKey);
+      qc.setQueryData<ProcQueryData>(queryKey, (old) => {
+        if (!old || !old.dados) return old;
+        const nextDados = removeDiscrepancyOptimistically(
+          old.dados as Record<string, unknown> & { divergencias?: Array<{ id?: string }> },
+          vars.id,
+        );
+        return nextDados ? { ...old, dados: nextDados } : old;
+      });
+      return { previous };
+    },
+    onError: (err: Error, _vars, ctx) => {
+      if (ctx?.previous !== undefined) qc.setQueryData(queryKey, ctx.previous);
+      toast.error(err.message);
+    },
   });
 
   const processo = (data as { dados?: unknown } | null)?.dados as ProcessoFunerario | undefined;
