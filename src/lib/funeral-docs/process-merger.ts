@@ -253,6 +253,41 @@ export function mergeProcess(docs: DocumentoFonte[], opts: MergeOptions = {}): P
     if (cad) processo.cadastroGscemi = cad;
   }
 
+  // Tela GSCEMI "Cadastro do Falecido / Sepultamento"
+  {
+    const principal = processo.falecidos.find((f) => f.papel === "principal");
+    const cadSep = montarCadastroSepultamentoGscemi({
+      documentos: docs,
+      numeroDoDeclaracaoObito: principal?.numeroDO?.normalized,
+      dataSepultamentoOutrasFontes: processo.dadosSepultamento?.data?.normalized,
+    });
+    if (cadSep) processo.cadastroSepultamentoGscemi = cadSep;
+  }
+
+  // Tela GSCEMI "Declarantes" (óbito + pagamento)
+  {
+    const decl = montarDeclarantesGscemi({
+      documentos: docs,
+      declaranteObitoDaDO: processo.responsavelPrincipal
+        ? {
+            nome: processo.responsavelPrincipal.nome?.normalized,
+            cpf: processo.responsavelPrincipal.cpf?.normalized,
+          }
+        : undefined,
+      administradorProvisorio: processo.cadastroGscemi?.administradorProvisorio
+        ? {
+            nome: processo.cadastroGscemi.administradorProvisorio.nome,
+            cpf: processo.cadastroGscemi.administradorProvisorio.cpf,
+          }
+        : undefined,
+    });
+    if (decl) {
+      if (decl.declaranteObito) processo.declaranteObitoGscemi = decl.declaranteObito;
+      if (decl.declarantePagamento) processo.declarantePagamento = decl.declarantePagamento;
+    }
+  }
+
+
   processo.divergencias = detectDiscrepancies(docs);
   processo.camposPendentes = computePending(processo);
   return processo;
