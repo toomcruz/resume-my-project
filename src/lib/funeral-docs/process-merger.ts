@@ -19,6 +19,7 @@ import { detectarPadraoFuneral } from "./padrao-funeral";
 import { mergeDeceased, sameDeceased } from "./person-matcher";
 import { computePending } from "./required-fields";
 import { montarCadastroGscemi } from "./gscemi";
+import { montarCadastroSepultamentoGscemi, montarDeclarantesGscemi } from "./gscemi-sepultamento";
 
 function vr(value: unknown, docId?: string, confianca = 0.7): ValorRastreado | undefined {
   if (value == null) return undefined;
@@ -251,6 +252,41 @@ export function mergeProcess(docs: DocumentoFonte[], opts: MergeOptions = {}): P
     const cad = montarCadastroGscemi({ documentos: docs, declarante, contratante, falecidoSepultado });
     if (cad) processo.cadastroGscemi = cad;
   }
+
+  // Tela GSCEMI "Cadastro do Falecido / Sepultamento"
+  {
+    const principal = processo.falecidos.find((f) => f.papel === "principal");
+    const cadSep = montarCadastroSepultamentoGscemi({
+      documentos: docs,
+      numeroDoDeclaracaoObito: principal?.numeroDO?.normalized,
+      dataSepultamentoOutrasFontes: processo.dadosSepultamento?.data?.normalized,
+    });
+    if (cadSep) processo.cadastroSepultamentoGscemi = cadSep;
+  }
+
+  // Tela GSCEMI "Declarantes" (óbito + pagamento)
+  {
+    const decl = montarDeclarantesGscemi({
+      documentos: docs,
+      declaranteObitoDaDO: processo.responsavelPrincipal
+        ? {
+            nome: processo.responsavelPrincipal.nome?.normalized,
+            cpf: processo.responsavelPrincipal.cpf?.normalized,
+          }
+        : undefined,
+      administradorProvisorio: processo.cadastroGscemi?.administradorProvisorio
+        ? {
+            nome: processo.cadastroGscemi.administradorProvisorio.nome,
+            cpf: processo.cadastroGscemi.administradorProvisorio.cpf,
+          }
+        : undefined,
+    });
+    if (decl) {
+      if (decl.declaranteObito) processo.declaranteObitoGscemi = decl.declaranteObito;
+      if (decl.declarantePagamento) processo.declarantePagamento = decl.declarantePagamento;
+    }
+  }
+
 
   processo.divergencias = detectDiscrepancies(docs);
   processo.camposPendentes = computePending(processo);

@@ -112,6 +112,35 @@ const FIELDS = [
   "cep_cobranca", "endereco_cobranca", "numero_cobranca", "complemento_cobranca", "cidade_cobranca", "bairro_cobranca", "ponto_referencia_cobranca", "area_cobranca",
   "cep_comercial", "endereco_comercial", "numero_comercial", "complemento_comercial", "cidade_comercial", "bairro_comercial",
   "nome_dependente", "cpf_dependente", "rg_dependente", "data_nascimento_dependente", "telefone_dependente", "grau_parentesco_dependente",
+  // GSCEMI — Cadastro do Falecido / Sepultamento
+  "numero_registro_sepultamento", "numero_sepultado", "numero_ordem_servico", "os_sisfuner",
+  "numero_registro_do", "pro_aim", "tem_plano_funerario", "natureza_obito",
+  "parentesco_cadastro_sepultamento", "tipo_atendimento",
+  "sepultamento", "cremacao", "cremacao_e_sepultamento", "tanatopraxia",
+  "exumacao", "translado_interno", "translado_externo",
+  "data_falecimento", "data_sepultamento", "data_exumacao",
+  "data_translado_interno", "data_translado_externo",
+  "cor", "religiao", "capela",
+  "codigo_cemiterio", "nome_cemiterio", "nome_concessionario",
+  "cartorio_sepultamento", "distrito_sepultamento", "livro_sepultamento", "pagina_sepultamento", "nota_fiscal",
+  "termo_numero_controle", "tem_lapide", "tipo_lapide", "quantidade_gravacoes",
+  "lapide_fixada", "data_fixacao_lapide", "situacao_sepultado", "data_situacao_sepultado",
+  "personalidade", "foto",
+  "concessionaria_responsavel", "seguradora_parceiro", "descricao_atendimento",
+  // GSCEMI — Declarantes (óbito + pagamento)
+  "nome_declarante_obito", "cpf_declarante_obito", "cnpj_declarante_obito",
+  "inscricao_declarante_obito", "tipo_pessoa_declarante_obito",
+  "cep_declarante_obito", "logradouro_declarante_obito", "numero_declarante_obito",
+  "complemento_declarante_obito", "bairro_declarante_obito", "cidade_declarante_obito",
+  "uf_declarante_obito", "codigo_ibge_declarante_obito",
+  "telefone_declarante_obito", "celular_declarante_obito", "email_declarante_obito",
+  "nome_declarante_pagamento", "cpf_declarante_pagamento", "cnpj_declarante_pagamento",
+  "inscricao_declarante_pagamento", "tipo_pessoa_declarante_pagamento",
+  "cep_declarante_pagamento", "logradouro_declarante_pagamento", "numero_declarante_pagamento",
+  "complemento_declarante_pagamento", "bairro_declarante_pagamento", "cidade_declarante_pagamento",
+  "uf_declarante_pagamento", "codigo_ibge_declarante_pagamento",
+  "telefone_declarante_pagamento", "celular_declarante_pagamento", "email_declarante_pagamento",
+  "origem_dados_declarante_pagamento",
 ];
 
 export const classifyAndExtractProcess = createServerFn({ method: "POST" })
@@ -159,7 +188,7 @@ export const classifyAndExtractProcess = createServerFn({ method: "POST" })
           processLabel: data.tipoProcesso,
           timeoutMs: 20000,
           contextHints:
-            "Documento pode ser Declaração de Óbito, Nota de Contratação Funeral ou Cadastro de Concessionário GSCEMI. O cadastro GSCEMI pode aparecer em várias abas (Manutenção, Endereço, Complementares) — extraia todos os campos visíveis em cada aba. Nunca invente.",
+            "Documento pode ser Declaração de Óbito, Nota de Contratação Funeral, Cadastro de Concessionário GSCEMI (várias abas: Manutenção/Endereço/Complementares), Cadastro do Falecido / Sepultamento no GSCEMI (tela com Tipo de Sepultamento, Nº Sepult, PRO-AIM, Cartório/Livro/Página, Termo/Nº Controle, Tem Lápide) ou Tela de Declarantes GSCEMI (DECLARANTE DO ÓBITO + DECLARANTE DO PAGAMENTO). Preserve a origem exata de cada campo. Nunca invente. Para a tela de declarantes, prefixe os campos com _obito ou _pagamento conforme a seção.",
         });
       } catch (err) {
         logSafe("extração falhou", { imageId: item.imageId, error: (err as Error).message });
@@ -262,7 +291,14 @@ const ConfirmInput = z.object({
   campoPath: z.string(),
   valorCorreto: z.string(),
   valorExtraido: z.string().optional(),
-  tipoDocumento: z.enum(["DECLARACAO_DE_OBITO", "NOTA_DE_CONTRATACAO_FUNERAL", "CADASTRO_CONCESSIONARIO_GSCEMI", "DOCUMENTO_DESCONHECIDO"]).default("DOCUMENTO_DESCONHECIDO"),
+  tipoDocumento: z.enum([
+    "DECLARACAO_DE_OBITO",
+    "NOTA_DE_CONTRATACAO_FUNERAL",
+    "CADASTRO_CONCESSIONARIO_GSCEMI",
+    "CADASTRO_FALECIDO_SEPULTAMENTO_GSCEMI",
+    "DECLARANTES_SEPULTAMENTO_GSCEMI",
+    "DOCUMENTO_DESCONHECIDO",
+  ]).default("DOCUMENTO_DESCONHECIDO"),
 });
 
 export const confirmProcessField = createServerFn({ method: "POST" })

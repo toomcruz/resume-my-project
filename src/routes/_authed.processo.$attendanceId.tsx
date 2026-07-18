@@ -261,9 +261,158 @@ function ProcessoPage() {
                 </ul>
               )}
             </Section>
+
+            {processo.cadastroSepultamentoGscemi && (
+              <Section title="Cadastro do Sepultamento — GSCEMI">
+                <GscemiSepultamentoView data={processo.cadastroSepultamentoGscemi} />
+              </Section>
+            )}
+
+            {(processo.declaranteObitoGscemi || processo.declarantePagamento) && (
+              <Section title="Declarantes — GSCEMI">
+                <DeclarantesGscemiView
+                  obito={processo.declaranteObitoGscemi}
+                  pagamento={processo.declarantePagamento}
+                />
+              </Section>
+            )}
           </div>
         </div>
       )}
     </motion.div>
+  );
+}
+
+function KV({ k, v }: { k: string; v?: string | null }) {
+  if (!v) return null;
+  return (
+    <div className="flex text-xs py-0.5 border-b border-border/30 last:border-none">
+      <span className="w-40 shrink-0 text-muted-foreground">{k}</span>
+      <span className="flex-1">{v}</span>
+    </div>
+  );
+}
+
+function GscemiSepultamentoView({ data }: { data: NonNullable<ProcessoFunerario["cadastroSepultamentoGscemi"]> }) {
+  const proc = data.tipoProcedimento ?? {};
+  const procList = Object.entries(proc)
+    .filter(([, v]) => v)
+    .map(([k]) => k)
+    .join(", ");
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="text-xs font-medium mb-1">Identificação</div>
+        <KV k="Nº registro" v={data.numeroRegistro} />
+        <KV k="Nº sepultado" v={data.numeroSepultado} />
+        <KV k="Inscrição GSCEMI" v={data.inscricaoGscemi} />
+        <KV k="Nº O.S." v={data.numeroOrdemServico} />
+        <KV k="Nº contrato" v={data.numeroContrato} />
+        <KV k="Nº D.O." v={data.numeroDeclaracaoObito} />
+        <KV k="PRO-AIM" v={data.proAim} />
+        <KV k="Plano funerário" v={data.temPlanoFunerario} />
+        <KV k="Natureza óbito" v={data.naturezaObito} />
+        <KV k="Parentesco (cad. sep.)" v={data.parentescoCadastroSepultamento} />
+      </div>
+      <div>
+        <div className="text-xs font-medium mb-1">Procedimento</div>
+        <KV k="Marcados" v={procList || undefined} />
+      </div>
+      <div>
+        <div className="text-xs font-medium mb-1">Localização</div>
+        <KV k="Cemitério" v={data.nomeCemiterio} />
+        <KV k="Código cemitério" v={data.codigoCemiterio} />
+        <KV k="Concessionário" v={data.nomeConcessionarioVinculado} />
+        <KV k="Quadra" v={data.quadra} />
+        <KV k="Letra" v={data.letra} />
+        <KV k="Lote" v={data.lote} />
+        <KV k="Nº jazigo" v={data.numeroJazigo} />
+        <KV k="Tipo concessão" v={data.tipoConcessao} />
+      </div>
+      <div>
+        <div className="text-xs font-medium mb-1">Livro e página</div>
+        <KV k="Cartório" v={data.registroLivro?.cartorio} />
+        <KV k="Distrito" v={data.registroLivro?.distrito} />
+        <KV k="Livro" v={data.registroLivro?.livro} />
+        <KV k="Página" v={data.registroLivro?.pagina} />
+        <KV k="Nota fiscal" v={data.registroLivro?.notaFiscal} />
+      </div>
+      <div>
+        <div className="text-xs font-medium mb-1">Placa de identificação</div>
+        <KV k="Termo/Nº controle" v={data.placaIdentificacao?.termoNumeroControle} />
+        <KV k="Nº placa" v={data.placaIdentificacao?.numeroPlacaIdentificacao} />
+        <KV k="Tem lápide" v={data.placaIdentificacao?.temLapide} />
+        <KV k="Tipo lápide" v={data.placaIdentificacao?.tipoLapide} />
+        <KV k="Qtd gravações" v={data.placaIdentificacao?.quantidadeGravacoes} />
+        <KV k="Lápide fixada" v={data.placaIdentificacao?.lapideFixada} />
+        <KV k="Data fixação" v={data.placaIdentificacao?.dataFixacao} />
+        <KV k="Situação sepultado" v={data.placaIdentificacao?.situacaoSepultado} />
+      </div>
+      {data.alertas?.length ? (
+        <div className="space-y-1">
+          <div className="text-xs font-medium">Alertas</div>
+          {data.alertas.map((a, i) => (
+            <div
+              key={i}
+              className={`text-xs px-2 py-1 rounded border ${
+                a.nivel === "warn"
+                  ? statusClass.amarelo
+                  : a.nivel === "error"
+                    ? statusClass.vermelho
+                    : "bg-muted text-muted-foreground border-border"
+              }`}
+            >
+              {a.mensagem}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DeclaranteBlock({ title, d }: { title: string; d?: NonNullable<ProcessoFunerario["declaranteObitoGscemi"]> }) {
+  if (!d) return null;
+  return (
+    <div>
+      <div className="text-xs font-medium mb-1">{title}</div>
+      <KV k="Nome" v={d.nome} />
+      <KV k="Tipo pessoa" v={d.tipoPessoa} />
+      <KV k="CPF" v={d.cpf} />
+      <KV k="CNPJ" v={d.cnpj} />
+      <KV k="Inscrição" v={d.inscricao} />
+      <KV k="Telefone" v={d.telefone} />
+      <KV k="Celular" v={d.celular} />
+      <KV k="E-mail" v={d.email} />
+      {d.endereco && (
+        <>
+          <KV k="CEP" v={d.endereco.cep} />
+          <KV k="Logradouro" v={d.endereco.logradouro} />
+          <KV k="Número" v={d.endereco.numero} />
+          <KV k="Complemento" v={d.endereco.complemento} />
+          <KV k="Bairro" v={d.endereco.bairro} />
+          <KV k="Cidade" v={d.endereco.cidade} />
+          <KV k="UF" v={d.endereco.uf} />
+        </>
+      )}
+      {d.origemDadosDeclarantePagamento && (
+        <KV k="Origem dos dados" v={d.origemDadosDeclarantePagamento} />
+      )}
+    </div>
+  );
+}
+
+function DeclarantesGscemiView({
+  obito,
+  pagamento,
+}: {
+  obito?: NonNullable<ProcessoFunerario["declaranteObitoGscemi"]>;
+  pagamento?: NonNullable<ProcessoFunerario["declarantePagamento"]>;
+}) {
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <DeclaranteBlock title="Declarante do óbito (GSCEMI)" d={obito} />
+      <DeclaranteBlock title="Declarante do pagamento" d={pagamento} />
+    </div>
   );
 }
