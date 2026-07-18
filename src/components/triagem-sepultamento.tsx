@@ -19,6 +19,7 @@ import {
 } from "@/lib/triagem-sepultamento";
 import { readPlacaFromImage } from "@/lib/vision/read-placa.functions";
 import { getErrorMessage } from "@/lib/error-message";
+import { EXHUMATION_TIME_SLOTS } from "@/lib/domain/exhumation-slots";
 
 interface TriagemSepultamentoProps {
   subprocess: string;
@@ -63,7 +64,9 @@ function Chip({
 
 type StepId =
   | "local"
+  | "gaveta"
   | "data"
+  | "horario_pps"
   | "horario"
   | "velorio"
   | "sala"
@@ -88,6 +91,9 @@ export function TriagemSepultamento({
     subprocess,
     data_agendada: extras.data_agendada,
     hora_sepultamento: extras.hora_sepultamento,
+    jazigo_possui_gaveta_disponivel:
+      (extras.jazigo_possui_gaveta_disponivel as "sim" | "nao" | "") || "",
+    hora_exumacao_pps: extras.hora_exumacao_pps,
     tem_velorio: inferredWakeChoice,
     sala_velorio: extras.sala_velorio,
     sem_velorio: (extras.sem_velorio as "SIM" | "") || "",
@@ -101,11 +107,17 @@ export function TriagemSepultamento({
   const [placaEncontrada, setPlacaEncontrada] = useState<string | null>(null);
 
   const steps: StepId[] = useMemo(() => {
-    const base: StepId[] = ["local", "data", "horario", "velorio"];
+    const base: StepId[] = ["local"];
+    if (state.subprocess === "jazigo") base.push("gaveta");
+    base.push("data");
+    if (state.subprocess === "jazigo" && state.jazigo_possui_gaveta_disponivel === "nao") {
+      base.push("horario_pps");
+    }
+    base.push("horario", "velorio");
     if (state.tem_velorio === "SIM") base.push("sala", "detalhes_velorio");
     base.push("placa");
     return base;
-  }, [state.tem_velorio]);
+  }, [state.jazigo_possui_gaveta_disponivel, state.subprocess, state.tem_velorio]);
 
   const [stepIndex, setStepIndex] = useState(0);
   useEffect(() => {
@@ -125,10 +137,28 @@ export function TriagemSepultamento({
   function pickLocal(local: "quadra_geral" | "jazigo") {
     onSubprocessChange(local);
     const derived = applyLocalSepultamento(local);
+    const sameLocal = state.subprocess === local;
     onExtrasChange({
       concessao: derived.concessao,
       quadra_geral_gaveta: derived.quadra_geral_gaveta,
+      jazigo_possui_gaveta_disponivel: sameLocal ? state.jazigo_possui_gaveta_disponivel || "" : "",
+      hora_exumacao_pps: sameLocal ? state.hora_exumacao_pps || "" : "",
+      tipo_agenda_exumacao: "",
     });
+    next();
+  }
+
+  function pickGaveta(value: "sim" | "nao") {
+    onExtrasChange({
+      jazigo_possui_gaveta_disponivel: value,
+      hora_exumacao_pps: value === "sim" ? "" : extras.hora_exumacao_pps || "",
+      tipo_agenda_exumacao: "",
+    });
+    setTimeout(() => setStepIndex((index) => index + 1), 0);
+  }
+
+  function pickHorarioPps(horario: string) {
+    onExtrasChange({ hora_exumacao_pps: horario });
     next();
   }
 
@@ -217,7 +247,9 @@ export function TriagemSepultamento({
 
   const stepLabels: Record<StepId, string> = {
     local: "Local do sepultamento",
+    gaveta: "Disponibilidade no jazigo",
     data: "Data",
+    horario_pps: "Horário da Exumação PPS",
     horario: "Horário",
     velorio: "Haverá velório?",
     sala: "Sala do velório",
@@ -271,6 +303,36 @@ export function TriagemSepultamento({
                   className="py-6"
                 >
                   JAZIGO
+                </Chip>
+              </div>
+            </section>
+          )}
+
+          {step === "gaveta" && (
+            <section className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-base font-semibold">
+                  Há gaveta disponível no jazigo para este sepultamento?
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Com gaveta disponível, segue somente o sepultamento. Sem gaveta, será necessária
+                  uma Exumação PPS para liberar a vaga.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Chip
+                  selected={state.jazigo_possui_gaveta_disponivel === "sim"}
+                  onClick={() => pickGaveta("sim")}
+                  className="py-6"
+                >
+                  SIM, HÁ GAVETA
+                </Chip>
+                <Chip
+                  selected={state.jazigo_possui_gaveta_disponivel === "nao"}
+                  onClick={() => pickGaveta("nao")}
+                  className="py-6"
+                >
+                  NÃO, PRECISA LIBERAR VAGA
                 </Chip>
               </div>
             </section>
@@ -334,6 +396,28 @@ export function TriagemSepultamento({
             </section>
           )}
 
+          {step === "horario_pps" && (
+            <section className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-base font-semibold">Horário da Exumação PPS</Label>
+                <p className="text-sm text-muted-foreground">
+                  Esta etapa aparece somente porque o jazigo não tem gaveta disponível.
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {EXHUMATION_TIME_SLOTS.map((horario) => (
+                  <Chip
+                    key={horario}
+                    selected={state.hora_exumacao_pps === horario}
+                    onClick={() => pickHorarioPps(horario)}
+                  >
+                    {horario}
+                  </Chip>
+                ))}
+              </div>
+            </section>
+          )}
+
           {step === "horario" && (
             <section className="space-y-3">
               <Label className="text-base font-semibold">Horário do sepultamento</Label>
@@ -371,9 +455,7 @@ export function TriagemSepultamento({
                   className="py-6 text-left"
                 >
                   <span className="block text-base">NÃO</span>
-                  <span className="block text-xs font-normal opacity-80">
-                    Somente sepultamento
-                  </span>
+                  <span className="block text-xs font-normal opacity-80">Somente sepultamento</span>
                 </Chip>
               </div>
             </section>
@@ -419,8 +501,8 @@ export function TriagemSepultamento({
                     onChange={(e) => onExtrasChange({ fim_velorio: e.target.value })}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Preenchido automaticamente com o horário do sepultamento — altere só se
-                    o velório terminar em horário diferente.
+                    Preenchido automaticamente com o horário do sepultamento — altere só se o
+                    velório terminar em horário diferente.
                   </p>
                 </div>
               </div>
@@ -445,9 +527,7 @@ export function TriagemSepultamento({
 
           {step === "placa" && (
             <section className="space-y-3">
-              <Label className="text-base font-semibold">
-                Placa de identificação (opcional)
-              </Label>
+              <Label className="text-base font-semibold">Placa de identificação (opcional)</Label>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
                   value={state.placa_identificacao ?? ""}

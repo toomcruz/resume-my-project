@@ -2,23 +2,48 @@ import { describe, expect, it } from "vitest";
 import { isPpsSchedule, validatePpsSchedule } from "@/lib/agenda-sync";
 
 describe("isPpsSchedule", () => {
-  it("é true apenas para exumação com destino exumacao_pss", () => {
+  it("mantém compatibilidade com exumação classificada como exumacao_pss", () => {
+    expect(isPpsSchedule({ processKey: "exumacao", tipoAgendaExumacao: "exumacao_pss" })).toBe(
+      true,
+    );
+    expect(isPpsSchedule({ processKey: "exumacao", tipoAgendaExumacao: "exumacao" })).toBe(false);
+  });
+
+  it("ativa PPS no sepultamento em jazigo somente quando não há gaveta", () => {
     expect(
-      isPpsSchedule({ processKey: "exumacao", tipoAgendaExumacao: "exumacao_pss" }),
+      isPpsSchedule({
+        processKey: "sepultamento",
+        subprocess: "jazigo",
+        jazigoPossuiGavetaDisponivel: "nao",
+      }),
     ).toBe(true);
     expect(
-      isPpsSchedule({ processKey: "exumacao", tipoAgendaExumacao: "exumacao" }),
+      isPpsSchedule({
+        processKey: "sepultamento",
+        subprocess: "jazigo",
+        jazigoPossuiGavetaDisponivel: "sim",
+      }),
     ).toBe(false);
     expect(
-      isPpsSchedule({ processKey: "sepultamento", tipoAgendaExumacao: "exumacao_pss" }),
+      isPpsSchedule({
+        processKey: "sepultamento",
+        subprocess: "quadra_geral",
+        jazigoPossuiGavetaDisponivel: "nao",
+      }),
     ).toBe(false);
   });
 });
 
 describe("validatePpsSchedule", () => {
-  const base = {
+  const legacyExumacaoPps = {
     processKey: "exumacao" as const,
     tipoAgendaExumacao: "exumacao_pss" as const,
+  };
+
+  const sepultamentoPps = {
+    processKey: "sepultamento" as const,
+    subprocess: "jazigo" as const,
+    jazigoPossuiGavetaDisponivel: "nao" as const,
   };
 
   it("não retorna erros fora do contexto PPS", () => {
@@ -36,7 +61,7 @@ describe("validatePpsSchedule", () => {
     // 2026-07-16 é uma quinta-feira.
     expect(
       validatePpsSchedule({
-        ...base,
+        ...sepultamentoPps,
         data_agendada: "2026-07-16",
         hora_agendamento: "09:00",
       }),
@@ -46,7 +71,7 @@ describe("validatePpsSchedule", () => {
   it("rejeita sábado", () => {
     // 2026-07-18 é sábado.
     const errors = validatePpsSchedule({
-      ...base,
+      ...sepultamentoPps,
       data_agendada: "2026-07-18",
       hora_agendamento: "09:00",
     });
@@ -56,7 +81,7 @@ describe("validatePpsSchedule", () => {
 
   it("rejeita horário fora dos slots fixos", () => {
     const errors = validatePpsSchedule({
-      ...base,
+      ...sepultamentoPps,
       data_agendada: "2026-07-16",
       hora_agendamento: "10:00",
     });
@@ -64,7 +89,17 @@ describe("validatePpsSchedule", () => {
     expect(errors[0]).toMatch(/08:30, 09:00, 09:30/);
   });
 
+  it("preserva a validação dos registros antigos de exumação PPS", () => {
+    expect(
+      validatePpsSchedule({
+        ...legacyExumacaoPps,
+        data_agendada: "2026-07-16",
+        hora_agendamento: "08:30",
+      }),
+    ).toEqual([]);
+  });
+
   it("aceita ausência de campos (retorna vazio)", () => {
-    expect(validatePpsSchedule({ ...base })).toEqual([]);
+    expect(validatePpsSchedule({ ...sepultamentoPps })).toEqual([]);
   });
 });

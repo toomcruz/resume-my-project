@@ -31,6 +31,13 @@ export function hasWake(extras: Record<string, string | undefined>): boolean {
   return extras.tem_velorio === "SIM";
 }
 
+export function burialRequiresPps(
+  subprocess: string | null | undefined,
+  extras: Record<string, string | undefined>,
+): boolean {
+  return subprocess === "jazigo" && extras.jazigo_possui_gaveta_disponivel === "nao";
+}
+
 /**
  * Determines whether a new attendance should automatically produce an agenda
  * event.
@@ -47,7 +54,9 @@ export function shouldCreateAgendaEvent(
   const eventDate = extras.data_agendada?.trim();
   if (!eventDate) return false;
   if (processKey === "exumacao") return true;
-  if (processKey === "sepultamento") return hasWake(extras);
+  if (processKey === "sepultamento") {
+    return hasWake(extras) || extras.jazigo_possui_gaveta_disponivel === "nao";
+  }
   return false;
 }
 
@@ -71,22 +80,26 @@ export function buildAgendaSyncPatch<E extends Record<string, unknown>>(
 }
 
 /**
- * PPS-specific rules (Exumação PSS agenda):
+ * PPS-specific rules (Exumação PPS agenda):
  * - date must fall on a working day (Mon-Fri);
  * - time, when informed, must be one of the fixed slots (08:30, 09:00, 09:30).
  * Returns a list of user-facing error messages; empty when valid.
  */
 export interface PpsScheduleInput {
   processKey: ProcessKey;
+  subprocess?: string | null;
   tipoAgendaExumacao?: string | null;
+  jazigoPossuiGavetaDisponivel?: string | null;
   data_agendada?: string;
   hora_agendamento?: string;
 }
 
 export function isPpsSchedule(input: PpsScheduleInput): boolean {
   return (
-    input.processKey === "exumacao" &&
-    input.tipoAgendaExumacao === "exumacao_pss"
+    (input.processKey === "exumacao" && input.tipoAgendaExumacao === "exumacao_pss") ||
+    (input.processKey === "sepultamento" &&
+      input.subprocess === "jazigo" &&
+      input.jazigoPossuiGavetaDisponivel === "nao")
   );
 }
 
@@ -95,23 +108,19 @@ export function validatePpsSchedule(input: PpsScheduleInput): string[] {
   const errors: string[] = [];
   const dateRaw = input.data_agendada?.trim();
   if (dateRaw) {
-    const [y, m, d] = dateRaw
-      .split("-")
-      .map((part) => Number.parseInt(part, 10));
+    const [y, m, d] = dateRaw.split("-").map((part) => Number.parseInt(part, 10));
     if (
       Number.isFinite(y) &&
       Number.isFinite(m) &&
       Number.isFinite(d) &&
       !isExhumationWorkingDay(new Date(y, m - 1, d, 12, 0, 0))
     ) {
-      errors.push("Exumação PSS ocorre apenas de segunda a sexta-feira.");
+      errors.push("Exumação PPS ocorre apenas de segunda a sexta-feira.");
     }
   }
   const timeRaw = input.hora_agendamento?.trim();
   if (timeRaw && !isExhumationTimeSlot(timeRaw)) {
-    errors.push(
-      `Horário inválido para Exumação PSS. Use ${EXHUMATION_TIME_SLOTS.join(", ")}.`,
-    );
+    errors.push(`Horário inválido para Exumação PPS. Use ${EXHUMATION_TIME_SLOTS.join(", ")}.`);
   }
   return errors;
 }
