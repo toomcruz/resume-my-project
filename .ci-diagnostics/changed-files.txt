@@ -1,6 +1,0 @@
-public/templates/official/catalogo-modelos.json
-public/templates/official/sepultamento/ordem-sepultamento.docx
-src/lib/__tests__/error-message.test.ts
-src/lib/__tests__/official-template-fidelity.test.ts
-src/lib/__tests__/utils.test.ts
-src/lib/domain/__tests__/template-payload.test.ts
