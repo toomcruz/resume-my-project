@@ -232,7 +232,14 @@ function OperationalAgenda() {
           pss_reference: toNullable(draft.pss_reference),
           status: draft.status,
           notes: toNullable(draft.notes),
+          quadra_rua: toNullable(draft.quadra_rua),
+          terreno: toNullable(draft.terreno),
+          gaveta: toNullable(draft.gaveta),
+          arrival_time: toNullable(draft.arrival_time),
+          driver_name: toNullable(draft.driver_name),
+          vehicle_plate: toNullable(draft.vehicle_plate),
         };
+
         if (editingId) {
           const { error } = await db.from("agenda_events").update(payload).eq("id", editingId);
           if (error) throw error;
