@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { FileText, Loader2 } from "lucide-react";
 
@@ -14,58 +13,51 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-const USERNAME_DOMAIN = "user.autofill.local";
-
 function normalizeUsername(raw: string) {
-  return raw.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
-}
-
-function usernameToEmail(username: string) {
-  return `${normalizeUsername(username)}@${USERNAME_DOMAIN}`;
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]/g, "");
 }
 
 function AuthPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuthSession();
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (session) navigate({ to: "/dashboard", replace: true });
   }, [session, navigate]);
 
-  async function signIn(e: React.FormEvent) {
+  async function accessWithUsername(e: React.FormEvent) {
     e.preventDefault();
     const clean = normalizeUsername(username);
-    if (!clean) return toast.error("Informe um nome de usuário válido.");
-    setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: usernameToEmail(clean),
-      password,
-    });
-    setSubmitting(false);
-    if (error) return toast.error("Usuário ou senha inválidos.");
-    toast.success("Bem-vindo!");
-  }
+    if (clean.length < 3) return toast.error("Use pelo menos 3 caracteres no nome de usuário.");
 
-  async function signUp(e: React.FormEvent) {
-    e.preventDefault();
-    const clean = normalizeUsername(username);
-    if (!clean) return toast.error("Nome de usuário só pode ter letras, números, ponto, hífen e underline.");
-    setSubmitting(true);
-    const { error } = await supabase.auth.signUp({
-      email: usernameToEmail(clean),
-      password,
-      options: {
-        data: { full_name: fullName || clean, username: clean },
-        emailRedirectTo: `${window.location.origin}/`,
-      },
-    });
-    setSubmitting(false);
-    if (error) return toast.error(error.message);
-    toast.success("Conta criada. Você já pode entrar.");
+    try {
+      setSubmitting(true);
+      const { data, error } = await supabase.functions.invoke("username-login", {
+        body: { username: clean },
+      });
+
+      if (error) throw error;
+      if (!data?.token_hash) throw new Error(data?.error || "Não foi possível gerar a sessão.");
+
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: data.token_hash,
+        type: "email",
+      });
+
+      if (verifyError) throw verifyError;
+      toast.success("Bem-vindo!");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Não foi possível acessar o sistema.";
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (loading) {
@@ -88,79 +80,31 @@ function AuthPage() {
         <Card>
           <CardHeader className="pb-4">
             <CardTitle>Acessar sistema</CardTitle>
-            <CardDescription>Entre com seu nome de usuário ou crie uma conta.</CardDescription>
+            <CardDescription>Digite seu nome de usuário para continuar.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Entrar</TabsTrigger>
-                <TabsTrigger value="signup">Criar conta</TabsTrigger>
-              </TabsList>
-              <TabsContent value="signin">
-                <form onSubmit={signIn} className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="user-in">Nome de usuário</Label>
-                    <Input
-                      id="user-in"
-                      autoComplete="username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password-in">Senha</Label>
-                    <Input
-                      id="password-in"
-                      type="password"
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Entrar
-                  </Button>
-                </form>
-              </TabsContent>
-              <TabsContent value="signup">
-                <form onSubmit={signUp} className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name-up">Nome completo (opcional)</Label>
-                    <Input id="name-up" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="user-up">Nome de usuário</Label>
-                    <Input
-                      id="user-up"
-                      autoComplete="username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Apenas letras, números, ponto, hífen e underline.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password-up">Senha</Label>
-                    <Input
-                      id="password-up"
-                      type="password"
-                      autoComplete="new-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Criar conta
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+            <form onSubmit={accessWithUsername} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Nome de usuário</Label>
+                <Input
+                  id="username"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Ex.: tom"
+                  required
+                  minLength={3}
+                  maxLength={40}
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground">
+                  Apenas letras, números, ponto, hífen e underline.
+                </p>
+              </div>
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Acessar
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
