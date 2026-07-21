@@ -1,0 +1,221 @@
+name: Corrigir layouts dos modelos oficiais
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - scripts/fix_all_official_docx_layouts.py
+      - .github/workflows/fix-all-official-docx-layouts.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-official-docx-layouts
+  cancel-in-progress: false
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install python-docx lxml
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-writer poppler-utils
+
+      - name: Corrigir todos os DOCX oficiais
+        run: |
+          python scripts/fix_all_official_docx_layouts.py \
+            public/templates/official \
+            public/templates/official
+
+      - name: Renderizar e validar A4, uma página e margens
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .docx-validation
+          mkdir -p .docx-validation/pdf
+
+          mapfile -t DOCX_FILES < <(find public/templates/official -maxdepth 1 -type f -iname '*.docx' | sort)
+          if [ "${#DOCX_FILES[@]}" -lt 13 ]; then
+            echo "Esperados pelo menos 13 modelos oficiais; encontrados ${#DOCX_FILES[@]}."
+            exit 1
+          fi
+
+          libreoffice --headless --convert-to pdf --outdir .docx-validation/pdf "${DOCX_FILES[@]}"
+
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+          import subprocess
+          import xml.etree.ElementTree as ET
+
+          pdf_dir = Path('.docx-validation/pdf')
+          results = []
+          failures = []
+
+          for pdf in sorted(pdf_dir.glob('*.pdf')):
+              info = subprocess.run(
+                  ['pdfinfo', str(pdf)],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              ).stdout
+              pages_match = re.search(r'^Pages:\s+(\d+)', info, re.MULTILINE)
+              size_match = re.search(
+                  r'^Page size:\s+([\d.]+) x ([\d.]+) pts',
+                  info,
+                  re.MULTILINE,
+              )
+              if not pages_match or not size_match:
+                  failures.append(f'{pdf.name}: não foi possível ler páginas/tamanho')
+                  continue
+
+              pages = int(pages_match.group(1))
+              width, height = map(float, size_match.groups())
+              dimensions = sorted((width, height))
+              is_a4 = abs(dimensions[0] - 595.28) < 4 and abs(dimensions[1] - 841.89) < 4
+
+              bbox_file = pdf.with_suffix('.bbox.html')
+              subprocess.run(
+                  ['pdftotext', '-bbox-layout', str(pdf), str(bbox_file)],
+                  check=True,
+              )
+              tree = ET.parse(bbox_file)
+              namespace = {'x': 'http://www.w3.org/1999/xhtml'}
+              overflow = []
+              for word in tree.findall('.//x:word', namespace):
+                  x_min = float(word.attrib['xMin'])
+                  x_max = float(word.attrib['xMax'])
+                  y_min = float(word.attrib['yMin'])
+                  y_max = float(word.attrib['yMax'])
+                  if x_min < 1 or y_min < 1 or x_max > width - 1 or y_max > height - 1:
+                      overflow.append(word.text or '')
+
+              record = {
+                  'arquivo': pdf.name,
+                  'paginas': pages,
+                  'a4': is_a4,
+                  'largura_pt': width,
+                  'altura_pt': height,
+                  'palavras_fora_da_pagina': overflow[:20],
+              }
+              results.append(record)
+
+              if pages != 1:
+                  failures.append(f'{pdf.name}: gerou {pages} páginas')
+              if not is_a4:
+                  failures.append(f'{pdf.name}: não está em A4 ({width} x {height} pt)')
+              if overflow:
+                  failures.append(f'{pdf.name}: possui texto fora da página')
+
+          Path('.docx-validation/layout-report.json').write_text(
+              json.dumps(results, ensure_ascii=False, indent=2),
+              encoding='utf-8',
+          )
+
+          if failures:
+              print('\n'.join(failures))
+              raise SystemExit(1)
+
+          print(f'{len(results)} modelos renderizados e aprovados.')
+          PY
+
+      - name: Garantir regras críticas dos documentos
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import unicodedata
+          from docx import Document
+
+          def normalize(value: str) -> str:
+              return ''.join(
+                  char
+                  for char in unicodedata.normalize('NFD', value.lower())
+                  if unicodedata.category(char) != 'Mn'
+              )
+
+          def document_text(path: Path) -> str:
+              document = Document(path)
+              parts = [paragraph.text for paragraph in document.paragraphs]
+              for table in document.tables:
+                  for row in table.rows:
+                      parts.extend(cell.text for cell in row.cells)
+              for section in document.sections:
+                  parts.extend(paragraph.text for paragraph in section.header.paragraphs)
+                  parts.extend(paragraph.text for paragraph in section.footer.paragraphs)
+              return '\n'.join(parts)
+
+          files = sorted(Path('public/templates/official').glob('*.docx'))
+          problems = []
+          for path in files:
+              name = normalize(path.stem)
+              text = document_text(path)
+              normalized_text = normalize(text)
+
+              if 'condol' in name:
+                  if 'sala' in normalized_text:
+                      problems.append(f'{path.name}: Condolências ainda contém Sala')
+              if 'ossuario' in name:
+                  if '{{inscrGS}}' not in text:
+                      problems.append(f'{path.name}: falta inscrição GSCEMI')
+                  if 'renov' in name and '☒ RENOVAÇÃO' not in text:
+                      problems.append(f'{path.name}: Renovação não está marcada')
+                  if 'renov' not in name and '☒ AQUISIÇÃO' not in text:
+                      problems.append(f'{path.name}: Aquisição não está marcada')
+              if 'termo' in name and 'respons' in name:
+                  if 'exum' in name and '☒ EXUMAÇÃO' not in text:
+                      problems.append(f'{path.name}: Exumação não está marcada')
+                  if 'exum' not in name and '☒ SEPULTAMENTO' not in text:
+                      problems.append(f'{path.name}: Sepultamento não está marcado')
+              if 'ordem' in name and 'jazigo' in name and 'JAZIGO' not in text.upper():
+                  problems.append(f'{path.name}: identificação de Jazigo ausente')
+              if 'ordem' in name and 'quadra' in name and 'QUADRA GERAL' not in text.upper():
+                  problems.append(f'{path.name}: identificação de Quadra Geral ausente')
+
+          if problems:
+              raise SystemExit('\n'.join(problems))
+          print('Regras críticas aprovadas.')
+          PY
+
+      - name: Publicar DOCX corrigidos no próprio GitHub
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- public/templates/official; then
+            echo "Os modelos já estavam corrigidos."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/templates/official
+          git commit -m "fix: corrigir layout e enquadramento dos modelos oficiais [skip ci]"
+          git push origin HEAD:main
+
+      - name: Salvar relatório de validação
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-layout-modelos-oficiais
+          path: .docx-validation
+          if-no-files-found: warn
+          retention-days: 14
