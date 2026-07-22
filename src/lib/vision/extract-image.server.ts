@@ -5,19 +5,15 @@
  *
  * Server-only. Nunca importe deste arquivo em código de cliente.
  */
-import {
-  parseImageExtractionResponse,
-  type ImageExtractionResponse,
-} from "@/lib/vision/schema";
-
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+import { parseImageExtractionResponse, type ImageExtractionResponse } from "@/lib/vision/schema";
+import { callAIGateway } from "@/lib/ai-gateway.server";
 
 // Flash como primário: ~5x mais rápido que o Pro e suficiente para a maioria
 // dos prints/documentos. Pro entra apenas na passada de verificação para
 // campos com baixa confiança — economiza tempo e créditos sem perder acurácia.
-const MODEL_PRIMARY = "google/gemini-2.5-flash";
-const MODEL_VERIFY = "google/gemini-3-pro-preview";
-const MODEL_FALLBACK = "google/gemini-2.5-flash-lite";
+const MODEL_PRIMARY = "gemini-2.5-flash";
+const MODEL_VERIFY = "gemini-2.5-pro";
+const MODEL_FALLBACK = "gemini-2.5-flash-lite";
 
 const TIMEOUT_PRIMARY_MS = 25000;
 const TIMEOUT_VERIFY_MS = 35000;
@@ -142,9 +138,7 @@ function medianConfidence(data: ImageExtractionResponse): number {
   if (scores.length === 0) return 1; // sem campos, não força reverificação
   const sorted = [...scores].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 function needsVerification(data: ImageExtractionResponse): boolean {
@@ -202,11 +196,6 @@ async function callOnce(
   priorData?: ImageExtractionResponse,
 ): Promise<ExtractImageOutcome> {
   const started = Date.now();
-  const apiKey = deps.apiKey ?? process.env.LOVABLE_API_KEY;
-  if (!apiKey) {
-    return { ok: false, error: "LOVABLE_API_KEY não configurada", durationMs: 0 };
-  }
-  const doFetch = deps.fetch ?? fetch;
 
   let userText: string;
   if (mode === "initial") {
@@ -235,14 +224,8 @@ imageId = "${params.imageId}".`;
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
-    res = await doFetch(GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": apiKey,
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
+    res = await callAIGateway(
+      {
         model,
         temperature: 0,
         messages: [
@@ -261,8 +244,9 @@ imageId = "${params.imageId}".`;
           },
         ],
         response_format: { type: "json_object" },
-      }),
-    });
+      },
+      { ...deps, signal: controller.signal },
+    );
   } catch (e) {
     clearTimeout(timer);
     const isAbort = (e as Error)?.name === "AbortError";
@@ -278,14 +262,14 @@ imageId = "${params.imageId}".`;
     if (res.status === 429) {
       return {
         ok: false,
-        error: "Limite de requisições atingido. Tente novamente em instantes.",
+        error: "Limite da API Gemini atingido. Tente novamente em instantes.",
         durationMs: Date.now() - started,
       };
     }
     if (res.status === 402) {
       return {
         ok: false,
-        error: "Créditos de IA esgotados. Adicione créditos no workspace.",
+        error: "Créditos da API Gemini esgotados.",
         durationMs: Date.now() - started,
       };
     }
@@ -332,13 +316,7 @@ export async function extractSingleImage(
   params: ExtractImageInput,
   deps: CallDeps = {},
 ): Promise<ExtractImageOutcome> {
-  const first = await callOnce(
-    params,
-    "initial",
-    deps,
-    MODEL_PRIMARY,
-    TIMEOUT_PRIMARY_MS,
-  );
+  const first = await callOnce(params, "initial", deps, MODEL_PRIMARY, TIMEOUT_PRIMARY_MS);
 
   if (first.ok) {
     if (!needsVerification(first.data)) return first;
@@ -367,29 +345,15 @@ export async function extractSingleImage(
       first.error,
     );
   if (schemaRetryable) {
-    const second = await callOnce(
-      params,
-      "schema-retry",
-      deps,
-      MODEL_PRIMARY,
-      TIMEOUT_PRIMARY_MS,
-    );
+    const second = await callOnce(params, "schema-retry", deps, MODEL_PRIMARY, TIMEOUT_PRIMARY_MS);
     if (second.ok) return second;
   }
 
   // Fallback para Flash em erros HTTP transitórios — mantém o fluxo funcional
   // mesmo quando o Pro está sobrecarregado.
-  const httpFallback = /HTTP 5\d\d|falha de rede|timeout|indisponí|unavailable/i.test(
-    first.error,
-  );
+  const httpFallback = /HTTP 5\d\d|falha de rede|timeout|indisponí|unavailable/i.test(first.error);
   if (httpFallback) {
-    const fallback = await callOnce(
-      params,
-      "initial",
-      deps,
-      MODEL_FALLBACK,
-      TIMEOUT_FALLBACK_MS,
-    );
+    const fallback = await callOnce(params, "initial", deps, MODEL_FALLBACK, TIMEOUT_FALLBACK_MS);
     return fallback;
   }
 

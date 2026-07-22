@@ -1,18 +1,16 @@
 /**
  * Server fn que lê um print de mensagem (ex.: grupo do WhatsApp) e extrai
  * horário de chegada do corpo, nome do motorista e placa do veículo.
- * Reutiliza o gateway de IA existente (`extractFromImages`).
+ * Reutiliza o gateway Gemini existente (`extractFromImages`).
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 const ReadArrivalInput = z.object({
-  imageDataUrl: z
-    .string()
-    .refine((v) => v.startsWith("data:image/") || v.startsWith("https://"), {
-      message: "Imagem inválida",
-    }),
+  imageDataUrl: z.string().refine((v) => v.startsWith("data:image/") || v.startsWith("https://"), {
+    message: "Imagem inválida",
+  }),
 });
 
 export interface ArrivalInfo {
@@ -45,7 +43,7 @@ export const readArrivalFromImage = createServerFn({ method: "POST" })
       imageDataUrls: [data.imageDataUrl],
       fields: ["arrival_time", "driver_name", "vehicle_plate"],
       processLabel: "Chegada do corpo (print de mensagem)",
-      model: "google/gemini-2.5-flash-lite",
+      model: "gemini-2.5-flash-lite",
       timeoutMs: 12000,
       contextHints:
         "A imagem é um print de conversa/mensagem informando a chegada de um corpo ao cemitério. " +

@@ -1,19 +1,16 @@
-// Server-only helper: call Lovable AI Gateway to extract structured data from images.
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+// Server-only helper: extrai dados estruturados com Gemini via Supabase.
+import { callAIGateway } from "@/lib/ai-gateway.server";
 
 export interface ExtractParams {
   imageDataUrls: string[]; // data:image/...;base64,... OR https URLs
   fields: string[]; // placeholder names to fill
   processLabel: string;
   contextHints?: string;
-  model?: string; // default google/gemini-2.5-flash
+  model?: string; // default gemini-2.5-flash
   timeoutMs?: number; // default 20000
 }
 
 export async function extractFromImages(params: ExtractParams): Promise<Record<string, string>> {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("LOVABLE_API_KEY não configurada");
-
   const fieldsList = params.fields.length
     ? params.fields.join(", ")
     : "nome_falecido, cpf, data_nascimento, data_falecimento, data_sepultamento, local_sepultamento, nome_responsavel, cpf_responsavel, endereco, telefone";
@@ -30,7 +27,9 @@ Regras:
 - CPF no formato 000.000.000-00.
 ${params.contextHints ? `\nContexto adicional: ${params.contextHints}` : ""}`;
 
-  const content: any[] = [
+  const content: Array<
+    { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
+  > = [
     { type: "text", text: "Extraia os dados das imagens abaixo em JSON." },
     ...params.imageDataUrls.map((url) => ({ type: "image_url", image_url: { url } })),
   ];
@@ -40,22 +39,17 @@ ${params.contextHints ? `\nContexto adicional: ${params.contextHints}` : ""}`;
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
-    res = await fetch(GATEWAY_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": key,
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: params.model ?? "google/gemini-2.5-flash",
+    res = await callAIGateway(
+      {
+        model: params.model ?? "gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content },
         ],
         response_format: { type: "json_object" },
-      }),
-    });
+      },
+      { signal: controller.signal },
+    );
   } catch (e) {
     clearTimeout(timer);
     if ((e as Error)?.name === "AbortError") {
@@ -67,8 +61,10 @@ ${params.contextHints ? `\nContexto adicional: ${params.contextHints}` : ""}`;
 
   if (!res.ok) {
     const body = await res.text();
-    if (res.status === 429) throw new Error("Limite de requisições atingido. Tente novamente em instantes.");
-    if (res.status === 402) throw new Error("Créditos de IA esgotados. Adicione créditos no workspace.");
+    if (res.status === 429) {
+      throw new Error("Limite da API Gemini atingido. Tente novamente em instantes.");
+    }
+    if (res.status === 402) throw new Error("Créditos da API Gemini esgotados.");
     throw new Error(`Falha na extração (${res.status}): ${body}`);
   }
 

@@ -1,6 +1,6 @@
 /**
  * Server fn para ler o número da placa de identificação a partir de UM
- * print/foto enviado pelo usuário. Reutiliza o mesmo gateway de IA
+ * print/foto enviado pelo usuário. Reutiliza o mesmo gateway Gemini
  * (`extractFromImages`) para não introduzir novas dependências.
  *
  * A resposta NÃO é gravada automaticamente — a UI mostra "Placa
@@ -12,11 +12,9 @@ import { z } from "zod";
 
 const ReadPlacaInput = z.object({
   /** data URL ou https URL da imagem. */
-  imageDataUrl: z
-    .string()
-    .refine((v) => v.startsWith("data:image/") || v.startsWith("https://"), {
-      message: "Imagem inválida",
-    }),
+  imageDataUrl: z.string().refine((v) => v.startsWith("data:image/") || v.startsWith("https://"), {
+    message: "Imagem inválida",
+  }),
 });
 
 export const readPlacaFromImage = createServerFn({ method: "POST" })
@@ -28,7 +26,7 @@ export const readPlacaFromImage = createServerFn({ method: "POST" })
       imageDataUrls: [data.imageDataUrl],
       fields: ["placa_identificacao"],
       processLabel: "Placa de identificação",
-      model: "google/gemini-2.5-flash-lite",
+      model: "gemini-2.5-flash-lite",
       timeoutMs: 12000,
       contextHints:
         "Extraia APENAS o número da placa de identificação do jazigo/gaveta exibido na imagem. " +
