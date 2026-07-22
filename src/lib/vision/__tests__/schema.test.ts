@@ -44,4 +44,20 @@ describe("parseImageExtractionResponse — teste 7: JSON inválido nunca é suce
     const r = parseImageExtractionResponse("apenas texto solto");
     expect(r.ok).toBe(false);
   });
+
+  it("normaliza papéis retornados com acento", () => {
+    const r = parseImageExtractionResponse({
+      imageId: "img1",
+      documentType: "cadastro_jazigo",
+      persons: [
+        {
+          temporaryId: "p1",
+          name: "Pessoa",
+          roleCandidates: [{ role: "concessionário", confidence: 0.9, evidence: "Concessionário" }],
+        },
+      ],
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.persons[0].roleCandidates[0].role).toBe("concessionario");
+  });
 });

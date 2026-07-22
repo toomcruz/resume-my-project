@@ -12,6 +12,37 @@ export const POLL_INTERVAL_MS = 5_000;
 export const POLL_TIMEOUT_MS = 120_000;
 
 /**
+ * A revisão visual só pode aparecer depois que a extração terminou com
+ * sucesso. Enquanto o atendimento está em rascunho, extraindo ou com erro,
+ * os placeholders dos modelos não devem virar falsas pendências na tela.
+ */
+export function canShowDocumentReview(status: string | undefined | null): boolean {
+  return status === "reviewing" || status === "done" || status === "completed";
+}
+
+/** Fração dos campos esperados que recebeu um valor não vazio. */
+export function computeExtractionCoverage(
+  expectedKeys: readonly string[],
+  extracted: Record<string, string>,
+): number {
+  const uniqueKeys = Array.from(new Set(expectedKeys));
+  if (uniqueKeys.length === 0) return 1;
+  const found = uniqueKeys.filter((key) => extracted[key]?.trim()).length;
+  return found / uniqueKeys.length;
+}
+
+/** Aciona a leitura complementar quando a primeira extração ficou esparsa. */
+export function needsComplementaryExtraction(
+  expectedKeys: readonly string[],
+  extracted: Record<string, string>,
+  minimumCoverage = 0.75,
+): boolean {
+  return (
+    expectedKeys.length > 0 && computeExtractionCoverage(expectedKeys, extracted) < minimumCoverage
+  );
+}
+
+/**
  * Estados terminais que devem interromper imediatamente qualquer polling
  * de status do atendimento.
  */
@@ -66,10 +97,7 @@ export function canStartAutoExtract(params: {
   if (params.status !== "extracting") return false;
   if (params.hasExtractedData) return false;
   if (params.extracting) return false;
-  if (
-    params.lockTimestamp !== null &&
-    params.now - params.lockTimestamp < EXTRACT_LOCK_TTL_MS
-  ) {
+  if (params.lockTimestamp !== null && params.now - params.lockTimestamp < EXTRACT_LOCK_TTL_MS) {
     return false;
   }
   return true;
@@ -80,9 +108,7 @@ export function canStartAutoExtract(params: {
  * Usada para detectar "nova versão real da extração" sem depender de
  * updated_at genérico.
  */
-export function computeExtractedSignature(
-  raw: Record<string, unknown> | null | undefined,
-): string {
+export function computeExtractedSignature(raw: Record<string, unknown> | null | undefined): string {
   if (!raw) return "";
   const entries: Array<[string, string]> = [];
   for (const [k, v] of Object.entries(raw)) {

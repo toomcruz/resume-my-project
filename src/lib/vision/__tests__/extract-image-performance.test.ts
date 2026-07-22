@@ -38,7 +38,7 @@ const input = {
 };
 
 describe("extractSingleImage — caminho rápido", () => {
-  it("não repete a chamada por warnings quando os campos estão confiáveis", async () => {
+  it("reverifica com Pro quando há muitos avisos", async () => {
     const doFetch = vi.fn(async () =>
       geminiResponse(
         [
@@ -55,7 +55,8 @@ describe("extractSingleImage — caminho rápido", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(doFetch).toHaveBeenCalledTimes(1);
+    expect(doFetch).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(doFetch.mock.calls[1][1]?.body)).model).toBe("gemini-2.5-pro");
   });
 
   it("mantém a verificação para identificador importante muito incerto", async () => {
@@ -70,8 +71,7 @@ describe("extractSingleImage — caminho rápido", () => {
 
     expect(result.ok).toBe(true);
     expect(doFetch).toHaveBeenCalledTimes(2);
-    for (const [, init] of doFetch.mock.calls) {
-      expect(JSON.parse(String(init?.body)).model).toBe("gemini-2.5-flash");
-    }
+    expect(JSON.parse(String(doFetch.mock.calls[0][1]?.body)).model).toBe("gemini-2.5-flash");
+    expect(JSON.parse(String(doFetch.mock.calls[1][1]?.body)).model).toBe("gemini-2.5-pro");
   });
 });

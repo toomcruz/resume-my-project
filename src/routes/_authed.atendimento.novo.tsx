@@ -234,14 +234,10 @@ function NewAttendance() {
         .single();
       if (attendanceError) throw attendanceError;
 
-      const { compressImageForUpload } = await import("@/lib/image-compress");
       const uploadOne = async (originalFile: File) => {
-        // 2.000 px mantém texto pequeno legível para OCR e reduz fotos de
-        // celular de vários MB para uma fração do tamanho original.
-        const file = await compressImageForUpload(originalFile, {
-          maxSide: 2000,
-          quality: 0.88,
-        });
+        // Preserva o arquivo original: textos pequenos de prints e documentos
+        // perderam legibilidade quando as imagens eram reduzidas antes do OCR.
+        const file = originalFile;
         const dotIdx = file.name.lastIndexOf(".");
         const rawExt = dotIdx > 0 ? file.name.slice(dotIdx + 1).toLowerCase() : "";
         const extension = rawExt || (file.type.split("/")[1] ?? "bin");

@@ -27,7 +27,8 @@ export async function extractImageBatch(
   items: ExtractImageInput[],
   opts: ExtractBatchOptions = {},
 ): Promise<BatchItemResult[]> {
-  const concurrency = Math.max(1, Math.min(opts.concurrency ?? 3, 8));
+  // Uma chamada por vez evita estouro do limite por segundo da chave Gemini.
+  const concurrency = Math.max(1, Math.min(opts.concurrency ?? 1, 8));
   const run = opts.extract ?? extractSingleImage;
   const results: BatchItemResult[] = new Array(items.length);
 

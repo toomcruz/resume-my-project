@@ -8,22 +8,19 @@
 import { parseImageExtractionResponse, type ImageExtractionResponse } from "@/lib/vision/schema";
 import { callAIGateway } from "@/lib/ai-gateway.server";
 
-// Flash como primário e também na verificação: uma segunda leitura focada já
-// melhora os campos duvidosos sem adicionar a latência alta do modelo Pro.
+// Flash faz a primeira leitura; Pro confere os casos duvidosos para preservar
+// a precisão dos documentos densos e dos prints do sistema interno.
 const MODEL_PRIMARY = "gemini-2.5-flash";
-const MODEL_VERIFY = "gemini-2.5-flash";
-const MODEL_FALLBACK = "gemini-2.5-flash-lite";
+const MODEL_VERIFY = "gemini-2.5-pro";
+const MODEL_FALLBACK = "gemini-2.5-flash";
 
-const TIMEOUT_PRIMARY_MS = 20000;
-const TIMEOUT_VERIFY_MS = 18000;
-const TIMEOUT_FALLBACK_MS = 12000;
+const TIMEOUT_PRIMARY_MS = 30000;
+const TIMEOUT_VERIFY_MS = 45000;
+const TIMEOUT_FALLBACK_MS = 30000;
 
 // Segunda passada somente quando a confiança dos campos estiver realmente
 // baixa; warnings textuais isolados não devem dobrar o tempo de análise.
-const LOW_CONFIDENCE_THRESHOLD = 0.65;
-const VERY_LOW_CONFIDENCE_THRESHOLD = 0.5;
-const IMPORTANT_FIELD_PATTERN =
-  /(nome|cpf|rg|data|inscri|livro|folha|placa|jazigo|quadra|gaveta|termo|controle)/i;
+const LOW_CONFIDENCE_THRESHOLD = 0.7;
 
 export type ExtractImageInput = {
   imageId: string;
@@ -147,16 +144,8 @@ function needsVerification(data: ImageExtractionResponse): boolean {
   if (data.documentType === "desconhecido") return false; // não adianta insistir
   const lowFields = data.fields.filter((f) => f.confidence < LOW_CONFIDENCE_THRESHOLD);
   const median = medianConfidence(data);
-  const hasVeryLowImportantField = data.fields.some(
-    (field) =>
-      IMPORTANT_FIELD_PATTERN.test(field.canonicalKey) &&
-      field.confidence < VERY_LOW_CONFIDENCE_THRESHOLD,
-  );
-
-  // Warnings isolados não justificam uma segunda chamada. A verificação só
-  // acontece quando o conjunto está realmente inseguro, há vários campos
-  // duvidosos ou um identificador importante está muito incerto.
-  return median < 0.6 || lowFields.length >= 3 || hasVeryLowImportantField;
+  const manyWarnings = data.warnings.length >= 3;
+  return median < LOW_CONFIDENCE_THRESHOLD || lowFields.length >= 2 || manyWarnings;
 }
 
 function mergeExtractions(
@@ -349,9 +338,17 @@ export async function extractSingleImage(
     return first;
   }
 
+  // Chaves com limite de requisições podem rejeitar picos curtos. Uma pausa
+  // pequena, combinada ao lote sequencial, evita perder a imagem inteira.
+  if (/Limite da API Gemini|HTTP 429/i.test(first.error)) {
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    const retry = await callOnce(params, "initial", deps, MODEL_PRIMARY, TIMEOUT_PRIMARY_MS);
+    if (retry.ok) return retry;
+  }
+
   // Retry por schema/JSON no mesmo modelo (Pro).
   const schemaRetryable =
-    /JSON|schema|resposta vazia|resposta não é objeto|não é JSON válido|JSON vazio/i.test(
+    /JSON|schema|Invalid enum value|resposta vazia|resposta não é objeto|não é JSON válido|JSON vazio/i.test(
       first.error,
     );
   if (schemaRetryable) {

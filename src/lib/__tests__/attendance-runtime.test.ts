@@ -1,14 +1,45 @@
 import { describe, it, expect } from "vitest";
 import {
   canStartAutoExtract,
+  canShowDocumentReview,
+  computeExtractionCoverage,
   computeExtractedSignature,
   decidePollInterval,
   EXTRACT_LOCK_TTL_MS,
   mergeFieldsPreservingEdits,
+  needsComplementaryExtraction,
   POLL_INTERVAL_MS,
   POLL_TIMEOUT_MS,
   removeDiscrepancyOptimistically,
 } from "@/lib/attendance-runtime";
+
+describe("canShowDocumentReview", () => {
+  it("mostra os campos somente depois da extração concluída", () => {
+    expect(canShowDocumentReview("reviewing")).toBe(true);
+    expect(canShowDocumentReview("done")).toBe(true);
+    expect(canShowDocumentReview("completed")).toBe(true);
+    expect(canShowDocumentReview("draft")).toBe(false);
+    expect(canShowDocumentReview("extracting")).toBe(false);
+    expect(canShowDocumentReview("error")).toBe(false);
+  });
+});
+
+describe("extraction coverage", () => {
+  const expected = ["nome", "cpf", "endereco", "telefone"];
+
+  it("calcula somente valores preenchidos", () => {
+    expect(computeExtractionCoverage(expected, { nome: "Ana", cpf: "", telefone: "999" })).toBe(
+      0.5,
+    );
+  });
+
+  it("pede complemento abaixo de 75%", () => {
+    expect(needsComplementaryExtraction(expected, { nome: "Ana" })).toBe(true);
+    expect(needsComplementaryExtraction(expected, { nome: "Ana", cpf: "1", endereco: "Rua" })).toBe(
+      false,
+    );
+  });
+});
 
 describe("decidePollInterval", () => {
   it("desliga polling em status terminal", () => {
@@ -37,7 +68,13 @@ describe("decidePollInterval", () => {
 });
 
 describe("canStartAutoExtract", () => {
-  const base = { status: "extracting", hasExtractedData: false, extracting: false, lockTimestamp: null, now: 100 };
+  const base = {
+    status: "extracting",
+    hasExtractedData: false,
+    extracting: false,
+    lockTimestamp: null,
+    now: 100,
+  };
   it("permite quando extracting, sem dados, sem lock", () => {
     expect(canStartAutoExtract(base)).toBe(true);
   });
@@ -51,7 +88,9 @@ describe("canStartAutoExtract", () => {
     expect(canStartAutoExtract({ ...base, lockTimestamp: 100, now: 200 })).toBe(false);
   });
   it("libera após TTL do lock", () => {
-    expect(canStartAutoExtract({ ...base, lockTimestamp: 0, now: EXTRACT_LOCK_TTL_MS + 1 })).toBe(true);
+    expect(canStartAutoExtract({ ...base, lockTimestamp: 0, now: EXTRACT_LOCK_TTL_MS + 1 })).toBe(
+      true,
+    );
   });
   it("bloqueia se status não é extracting", () => {
     expect(canStartAutoExtract({ ...base, status: "done" })).toBe(false);

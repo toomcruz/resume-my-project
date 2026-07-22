@@ -22,11 +22,20 @@ const ROLE_ALIASES: Record<string, string> = {
   requisitante: "requerente",
 };
 
+function normalizeRole(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s-]+/g, "_");
+}
+
 export const RoleCandidateSchema = z.object({
   role: z.preprocess(
     (value) => {
       if (typeof value !== "string") return value;
-      const normalized = value.trim().toLowerCase();
+      const normalized = normalizeRole(value);
       return ROLE_ALIASES[normalized] ?? normalized;
     },
     z.enum([
@@ -46,7 +55,6 @@ export const RoleCandidateSchema = z.object({
   confidence: z.number().min(0).max(1),
   evidence: z.string().default(""),
 });
-
 
 export const RawPersonSchema = z.object({
   temporaryId: nonEmpty,

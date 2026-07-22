@@ -6,6 +6,7 @@ import {
   formatIsoToBr,
   validateTriagemSepultamento,
   HORARIOS_SEPULTAMENTO,
+  HORARIOS_VELORIO,
   SALAS_VELORIO,
   TRIAGEM_SEPULTAMENTO_REVIEW_KEYS,
 } from "@/lib/triagem-sepultamento";
@@ -48,6 +49,12 @@ describe("triagem-sepultamento", () => {
       "17:00",
     ]);
     expect(SALAS_VELORIO).toEqual(["A", "B", "C", "D", "E", "F"]);
+  });
+
+  it("expõe horários de velório de 08:00 a 23:30 em intervalos de 30 minutos", () => {
+    expect(HORARIOS_VELORIO).toHaveLength(32);
+    expect(HORARIOS_VELORIO.slice(0, 4)).toEqual(["08:00", "08:30", "09:00", "09:30"]);
+    expect(HORARIOS_VELORIO.at(-1)).toBe("23:30");
   });
 
   it("validação falha sem local, data, hora e escolha de velório", () => {

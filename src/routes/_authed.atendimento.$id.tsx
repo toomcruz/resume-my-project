@@ -4,10 +4,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   canStartAutoExtract,
+  canShowDocumentReview,
   computeExtractedSignature,
   decidePollInterval,
   EXTRACT_LOCK_TTL_MS,
   mergeFieldsPreservingEdits,
+  needsComplementaryExtraction,
 } from "@/lib/attendance-runtime";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -231,7 +233,6 @@ function AttendanceDetail() {
     [],
   );
 
-
   // Metadados de confiança/conflito derivados do estado de visão salvo.
   const fieldMeta = useMemo<Record<string, FlatFieldMeta>>(() => {
     try {
@@ -328,15 +329,31 @@ function AttendanceDetail() {
       // Novo pipeline (extração por imagem, consolidação, validações).
       let extracted: Record<string, string> = {};
       let usedFallback = false;
+      let visionSucceeded = false;
       try {
         const visionResult = await extractVisionFn({ data: { attendanceId: id } });
         extracted = (visionResult?.data ?? {}) as Record<string, string>;
+        visionSucceeded = true;
       } catch (visionError: unknown) {
         // Fallback automático: extrator legado.
         usedFallback = true;
         console.warn("[vision] fallback ativado:", getErrorMessage(visionError, ""));
         const legacy = await extractFn({ data: { attendanceId: id } });
         extracted = (legacy?.data ?? {}) as Record<string, string>;
+      }
+
+      if (visionSucceeded && needsComplementaryExtraction(reviewFields, extracted)) {
+        usedFallback = true;
+        const legacy = await extractFn({ data: { attendanceId: id } });
+        const complementary = (legacy?.data ?? {}) as Record<string, string>;
+        extracted = { ...complementary, ...extracted };
+        await supabase
+          .from("attendances")
+          .update({
+            extracted_data: { ...extracted, ...triagemFields } as never,
+            status: "reviewing",
+          })
+          .eq("id", id);
       }
       await qc.invalidateQueries({ queryKey: ["attendance", id] });
       toast.success(usedFallback ? "Dados extraídos (modo legado)" : "Dados extraídos");
@@ -553,7 +570,6 @@ function AttendanceDetail() {
     }
   }
 
-
   async function deleteAttendance() {
     if (!confirm("Excluir este atendimento e todos os documentos?")) return;
     await supabase.from("attendances").delete().eq("id", id);
@@ -570,6 +586,8 @@ function AttendanceDetail() {
   }
 
   const proc = getProcess(att.process);
+  const reviewReady = canShowDocumentReview(att.status);
+  const extractionInProgress = extracting || att.status === "extracting" || att.status === "draft";
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -631,7 +649,7 @@ function AttendanceDetail() {
                   )}
                   Re-extrair
                 </Button>
-                <Button size="sm" onClick={saveFields} disabled={saving}>
+                <Button size="sm" onClick={saveFields} disabled={saving || !reviewReady}>
                   {saving && <Loader2 className="h-3 w-3 animate-spin mr-1" />} Salvar revisão
                 </Button>
               </div>
@@ -646,12 +664,17 @@ function AttendanceDetail() {
                   </p>
                 </div>
               )}
-              {extracting && !Object.keys(fields).length && (
+              {!reviewReady && extractionInProgress && (
                 <div className="text-sm text-muted-foreground flex items-center gap-2 py-4">
                   <Loader2 className="h-4 w-4 animate-spin" /> Analisando imagens com IA…
                 </div>
               )}
-              {allFields.length === 0 && !extracting ? (
+              {!reviewReady && !extractionInProgress ? (
+                <p className="py-4 text-sm text-muted-foreground">
+                  A análise das imagens ainda não foi concluída. Clique em Re-extrair para tentar
+                  novamente.
+                </p>
+              ) : reviewReady && allFields.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Nenhum dado ainda. Instale os modelos oficiais ou adicione modelos com
                   placeholders {"{campo}"} em{" "}
@@ -660,7 +683,7 @@ function AttendanceDetail() {
                   </a>
                   , depois clique em Re-extrair.
                 </p>
-              ) : (
+              ) : reviewReady ? (
                 <DocumentReview
                   keys={reviewFields}
                   fields={fields}
@@ -678,7 +701,7 @@ function AttendanceDetail() {
                     })
                   }
                 />
-              )}
+              ) : null}
             </CardContent>
           </Card>
 

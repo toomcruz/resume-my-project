@@ -6,6 +6,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -14,6 +21,7 @@ import {
   computeQuickDate,
   formatIsoToBr,
   HORARIOS_SEPULTAMENTO,
+  HORARIOS_VELORIO,
   SALAS_VELORIO,
   type TriagemSepultamentoState,
 } from "@/lib/triagem-sepultamento";
@@ -59,6 +67,34 @@ function Chip({
         <Check className="absolute right-2 top-2 h-3.5 w-3.5 opacity-90" strokeWidth={3} />
       )}
     </button>
+  );
+}
+
+function WakeTimeSelect({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const options =
+    HORARIOS_VELORIO.includes(value) || !value ? HORARIOS_VELORIO : [value, ...HORARIOS_VELORIO];
+
+  return (
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectTrigger id={id} className="h-11">
+        <SelectValue placeholder="Selecione o horário" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((time) => (
+          <SelectItem key={time} value={time}>
+            {time}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -485,42 +521,24 @@ export function TriagemSepultamento({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="inicio_velorio">Início</Label>
-                  <Input
+                  <WakeTimeSelect
                     id="inicio_velorio"
-                    type="time"
                     value={extras.inicio_velorio ?? ""}
-                    onChange={(e) => onExtrasChange({ inicio_velorio: e.target.value })}
+                    onChange={(value) => onExtrasChange({ inicio_velorio: value })}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fim_velorio">Fim (= horário do sepultamento)</Label>
-                  <Input
+                  <WakeTimeSelect
                     id="fim_velorio"
-                    type="time"
                     value={extras.fim_velorio ?? extras.hora_sepultamento ?? ""}
-                    onChange={(e) => onExtrasChange({ fim_velorio: e.target.value })}
+                    onChange={(value) => onExtrasChange({ fim_velorio: value })}
                   />
                   <p className="text-xs text-muted-foreground">
                     Preenchido automaticamente com o horário do sepultamento — altere só se o
                     velório terminar em horário diferente.
                   </p>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="funeraria">Funerária / agência</Label>
-                <Input
-                  id="funeraria"
-                  value={extras.funeraria ?? ""}
-                  onChange={(e) => onExtrasChange({ funeraria: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="local_sepultamento">Local (quadra / jazigo / gaveta)</Label>
-                <Input
-                  id="local_sepultamento"
-                  value={extras.local_sepultamento ?? ""}
-                  onChange={(e) => onExtrasChange({ local_sepultamento: e.target.value })}
-                />
               </div>
             </section>
           )}

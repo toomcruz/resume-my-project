@@ -20,6 +20,14 @@ export const HORARIOS_SEPULTAMENTO = [
   "17:00",
 ] as const;
 
+/** Horários de início/término do velório, sempre em intervalos de 30 minutos. */
+export const HORARIOS_VELORIO = Array.from({ length: 32 }, (_, index) => {
+  const totalMinutes = 8 * 60 + index * 30;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+});
+
 /** Salas de velório (seleção única). */
 export const SALAS_VELORIO = ["A", "B", "C", "D", "E", "F"] as const;
 
