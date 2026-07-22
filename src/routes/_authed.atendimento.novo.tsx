@@ -234,7 +234,14 @@ function NewAttendance() {
         .single();
       if (attendanceError) throw attendanceError;
 
-      for (const file of files) {
+      const { compressImageForUpload } = await import("@/lib/image-compress");
+      const uploadOne = async (originalFile: File) => {
+        // 2.000 px mantém texto pequeno legível para OCR e reduz fotos de
+        // celular de vários MB para uma fração do tamanho original.
+        const file = await compressImageForUpload(originalFile, {
+          maxSide: 2000,
+          quality: 0.88,
+        });
         const dotIdx = file.name.lastIndexOf(".");
         const rawExt = dotIdx > 0 ? file.name.slice(dotIdx + 1).toLowerCase() : "";
         const extension = rawExt || (file.type.split("/")[1] ?? "bin");
@@ -248,11 +255,16 @@ function NewAttendance() {
           attendance_id: attendance.id,
           user_id: userId,
           storage_path: path,
-          original_name: file.name,
+          original_name: originalFile.name,
           mime_type: file.type,
           size_bytes: file.size,
         });
         if (rowError) throw rowError;
+      };
+
+      // Uploads em pequenos lotes: mais rápido sem estourar memória em celular.
+      for (let index = 0; index < files.length; index += 3) {
+        await Promise.all(files.slice(index, index + 3).map(uploadOne));
       }
 
       await createLinkedAgendaEvents(attendance.id, userId);
