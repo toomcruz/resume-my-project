@@ -8,20 +8,22 @@
 import { parseImageExtractionResponse, type ImageExtractionResponse } from "@/lib/vision/schema";
 import { callAIGateway } from "@/lib/ai-gateway.server";
 
-// Flash como primário: ~5x mais rápido que o Pro e suficiente para a maioria
-// dos prints/documentos. Pro entra apenas na passada de verificação para
-// campos com baixa confiança — economiza tempo e créditos sem perder acurácia.
+// Flash como primário e também na verificação: uma segunda leitura focada já
+// melhora os campos duvidosos sem adicionar a latência alta do modelo Pro.
 const MODEL_PRIMARY = "gemini-2.5-flash";
-const MODEL_VERIFY = "gemini-2.5-pro";
+const MODEL_VERIFY = "gemini-2.5-flash";
 const MODEL_FALLBACK = "gemini-2.5-flash-lite";
 
-const TIMEOUT_PRIMARY_MS = 25000;
-const TIMEOUT_VERIFY_MS = 35000;
-const TIMEOUT_FALLBACK_MS = 15000;
+const TIMEOUT_PRIMARY_MS = 20000;
+const TIMEOUT_VERIFY_MS = 18000;
+const TIMEOUT_FALLBACK_MS = 12000;
 
-// Se a mediana das confidences ficar abaixo disto OU houver muitos warnings,
-// disparamos uma passada de verificação focada nos campos duvidosos.
-const LOW_CONFIDENCE_THRESHOLD = 0.7;
+// Segunda passada somente quando a confiança dos campos estiver realmente
+// baixa; warnings textuais isolados não devem dobrar o tempo de análise.
+const LOW_CONFIDENCE_THRESHOLD = 0.65;
+const VERY_LOW_CONFIDENCE_THRESHOLD = 0.5;
+const IMPORTANT_FIELD_PATTERN =
+  /(nome|cpf|rg|data|inscri|livro|folha|placa|jazigo|quadra|gaveta|termo|controle)/i;
 
 export type ExtractImageInput = {
   imageId: string;
@@ -145,8 +147,16 @@ function needsVerification(data: ImageExtractionResponse): boolean {
   if (data.documentType === "desconhecido") return false; // não adianta insistir
   const lowFields = data.fields.filter((f) => f.confidence < LOW_CONFIDENCE_THRESHOLD);
   const median = medianConfidence(data);
-  const manyWarnings = data.warnings.length >= 3;
-  return median < LOW_CONFIDENCE_THRESHOLD || lowFields.length >= 2 || manyWarnings;
+  const hasVeryLowImportantField = data.fields.some(
+    (field) =>
+      IMPORTANT_FIELD_PATTERN.test(field.canonicalKey) &&
+      field.confidence < VERY_LOW_CONFIDENCE_THRESHOLD,
+  );
+
+  // Warnings isolados não justificam uma segunda chamada. A verificação só
+  // acontece quando o conjunto está realmente inseguro, há vários campos
+  // duvidosos ou um identificador importante está muito incerto.
+  return median < 0.6 || lowFields.length >= 3 || hasVeryLowImportantField;
 }
 
 function mergeExtractions(
