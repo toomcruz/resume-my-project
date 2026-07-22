@@ -17,8 +17,8 @@
       "horarioFimVelorio": "fim"
     },
     "contextos": ["somente_velorio", "velorio_e_sepultamento"],
-    "tamanhoBytes": 90182,
-    "sha256": "49e66557e5267852c9636fcc954891b2c358469028e338dba164d3ea5960f5aa",
+    "tamanhoBytes": 88124,
+    "sha256": "d4e4230533fea272dbf3ee8864ced45406078d3bb614a826d51111ecca66c18f",
     "paginas": 1
   },
   {
@@ -30,15 +30,14 @@
     "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "origem": "oficial",
     "ativo": true,
-    "placeholders": ["data", "nomeFal", "sala"],
+    "placeholders": ["data", "nomeFal"],
     "placeholderAliases": {
       "nomeFalecido": "nomeFal",
-      "dataEvento": "data",
-      "salaVelorio": "sala"
+      "dataEvento": "data"
     },
     "contextos": ["somente_velorio", "velorio_e_sepultamento"],
-    "tamanhoBytes": 27979,
-    "sha256": "65cc3a9475f32578da5cde447ea149706c6d9d667f94cab0823ba6359ffc7795",
+    "tamanhoBytes": 25123,
+    "sha256": "23b2630714c81024a459eded78f3b492faeff0b2d571a9a1e1a018fdbbe431e6",
     "paginas": 1
   },
   {
@@ -95,8 +94,8 @@
       "dataAtual": "dataAtual"
     },
     "contextos": ["quadra_geral", "jazigo"],
-    "tamanhoBytes": 127424,
-    "sha256": "7e9cc177b7af194cd146e0ef5291e80566f90613bed84d40af07c78366599147",
+    "tamanhoBytes": 129821,
+    "sha256": "4782c38af2fabb8062a783769f867463d9e735206809780c1d7a396397cc4e68",
     "paginas": 1
   },
   {
@@ -147,8 +146,8 @@
       "dataAtual": "dataAtual"
     },
     "contextos": ["quadra_geral", "jazigo"],
-    "tamanhoBytes": 134008,
-    "sha256": "37e6191a0397e6dd7a66d207180be1945fda1dbda3dd36ace0fb6aaea73d0fed",
+    "tamanhoBytes": 133460,
+    "sha256": "6bb32ef36e8fa8f3093e5f34eda7c6784614b90c0d7b932795dc08e782d8d119",
     "paginas": 1
   },
   {
@@ -185,8 +184,8 @@
       "dataAtualExtenso": "dataExt"
     },
     "contextos": ["sepultamento_jazigo", "exumacao_jazigo"],
-    "tamanhoBytes": 156299,
-    "sha256": "8d68f38e3e9c4c175b172309edb225d3e55c881da27a0863766ca1469fa1013e",
+    "tamanhoBytes": 156296,
+    "sha256": "149e4699c2b59abc6aeb42ed7653b9dbfa7d56f0b5b849871816178852ef9767",
     "paginas": 1
   },
   {
@@ -225,8 +224,8 @@
       "dataAtualExtenso": "dataExt"
     },
     "contextos": ["aluguel", "aquisicao", "renovacao"],
-    "tamanhoBytes": 160373,
-    "sha256": "069a775cf6f80a72c6dacefd9e1b1eeb7a64be2e89dd95a55fcc70a5c032d256",
+    "tamanhoBytes": 160369,
+    "sha256": "8ecab66997f93a0444728d2e2800daa06ef06f02905b740773e82b060d0b5e14",
     "paginas": 1
   },
   {
@@ -265,8 +264,8 @@
       "dataAtualExtenso": "dataExt"
     },
     "contextos": ["semi_intacto"],
-    "tamanhoBytes": 58677,
-    "sha256": "d24a1fcd459a7e27f708846d684e7bd573a57c7afa64f4a38a96aa34a4b9686b",
+    "tamanhoBytes": 58673,
+    "sha256": "5a7f6b8b2f67210a75f2ebdfd2b231871f0525e75ca4f9d8568f4027f20d7cd2",
     "paginas": 1
   },
   {
@@ -288,8 +287,8 @@
       "dataAtualExtenso": "dataExt"
     },
     "contextos": ["interno", "externo"],
-    "tamanhoBytes": 64943,
-    "sha256": "c37b22245baa128ec05ee0c2cc0f56ca3317595e53f0aca25c4741ed312100fd",
+    "tamanhoBytes": 64940,
+    "sha256": "98b2c83909dd11b74a2d7c186d29775a3afec5be72be04ad521a798646c2007a",
     "paginas": 1
   },
   {
@@ -352,8 +351,8 @@
       "proximaRenovacao": "proxRen"
     },
     "contextos": ["responsavel", "endereco", "dados_concessao", "dados_jazigo", "outro"],
-    "tamanhoBytes": 60852,
-    "sha256": "35a4a5f9b67e43bc14ba3cc1a7cc7a3d2a440e990bc0dc8a4f176aba771979dd",
+    "tamanhoBytes": 60859,
+    "sha256": "840fe0a1c7e1c68bd5db33c688ede422e9a20e08a0b5d73d352f817b602d88b8",
     "paginas": 1
   }
 ]

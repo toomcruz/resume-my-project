@@ -72,7 +72,7 @@ describe("docx official templates", () => {
   it("detects double-brace placeholders without inner brace duplicates", () => {
     const template = readTemplate("public/templates/official/velorio/condolencias.docx");
 
-    expect(detectPlaceholders(template)).toEqual(["data", "nomeFal", "sala"]);
+    expect(detectPlaceholders(template)).toEqual(["data", "nomeFal"]);
   });
 
   it("fills official double-brace templates without Docxtemplater Multi error", () => {
@@ -82,9 +82,18 @@ describe("docx official templates", () => {
       fillDocx(template, {
         data: "16/07/2026",
         nomeFal: "Maria Silva",
-        sala: "Sala 1",
       }),
     ).not.toThrow();
+  });
+
+  it("keeps the condolences sheet without a wake room field", () => {
+    const template = readTemplate("public/templates/official/velorio/condolencias.docx");
+    const output = fillDocx(template, {
+      data: "16/07/2026",
+      nomeFal: "Maria Silva",
+    });
+
+    expect(renderedText(output)).not.toMatch(/\bSala\s*:/i);
   });
 
   it("keeps generated DOCX output compressed for Microsoft Word compatibility", () => {
