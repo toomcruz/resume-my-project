@@ -9,33 +9,34 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthedModelosRouteImport } from './routes/_authed.modelos'
-import { Route as AuthedDashboardRouteImport } from './routes/_authed.dashboard'
+import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthedAgendaRouteImport } from './routes/_authed.agenda'
-import { Route as AuthedProcessoAttendanceIdRouteImport } from './routes/_authed.processo.$attendanceId'
-import { Route as AuthedAtendimentoNovoRouteImport } from './routes/_authed.atendimento.novo'
+import { Route as AuthedDashboardRouteImport } from './routes/_authed.dashboard'
+import { Route as AuthedModelosRouteImport } from './routes/_authed.modelos'
+import { Route as AuthedModelosExportRouteImport } from './routes/_authed.modelos-export'
 import { Route as AuthedAtendimentoIdRouteImport } from './routes/_authed.atendimento.$id'
+import { Route as AuthedAtendimentoNovoRouteImport } from './routes/_authed.atendimento.novo'
+import { Route as AuthedProcessoAttendanceIdRouteImport } from './routes/_authed.processo.$attendanceId'
 
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedModelosRoute = AuthedModelosRouteImport.update({
-  id: '/modelos',
-  path: '/modelos',
+const AuthedAgendaRoute = AuthedAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedDashboardRoute = AuthedDashboardRouteImport.update({
@@ -43,9 +44,24 @@ const AuthedDashboardRoute = AuthedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedAgendaRoute = AuthedAgendaRouteImport.update({
-  id: '/agenda',
-  path: '/agenda',
+const AuthedModelosRoute = AuthedModelosRouteImport.update({
+  id: '/modelos',
+  path: '/modelos',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedModelosExportRoute = AuthedModelosExportRouteImport.update({
+  id: '/modelos-export',
+  path: '/modelos-export',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedAtendimentoIdRoute = AuthedAtendimentoIdRouteImport.update({
+  id: '/atendimento/$id',
+  path: '/atendimento/$id',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedAtendimentoNovoRoute = AuthedAtendimentoNovoRouteImport.update({
+  id: '/atendimento/novo',
+  path: '/atendimento/novo',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedProcessoAttendanceIdRoute =
@@ -54,16 +70,6 @@ const AuthedProcessoAttendanceIdRoute =
     path: '/processo/$attendanceId',
     getParentRoute: () => AuthedRoute,
   } as any)
-const AuthedAtendimentoNovoRoute = AuthedAtendimentoNovoRouteImport.update({
-  id: '/atendimento/novo',
-  path: '/atendimento/novo',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedAtendimentoIdRoute = AuthedAtendimentoIdRouteImport.update({
-  id: '/atendimento/$id',
-  path: '/atendimento/$id',
-  getParentRoute: () => AuthedRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/agenda': typeof AuthedAgendaRoute
   '/dashboard': typeof AuthedDashboardRoute
   '/modelos': typeof AuthedModelosRoute
+  '/modelos-export': typeof AuthedModelosExportRoute
   '/atendimento/$id': typeof AuthedAtendimentoIdRoute
   '/atendimento/novo': typeof AuthedAtendimentoNovoRoute
   '/processo/$attendanceId': typeof AuthedProcessoAttendanceIdRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/agenda': typeof AuthedAgendaRoute
   '/dashboard': typeof AuthedDashboardRoute
   '/modelos': typeof AuthedModelosRoute
+  '/modelos-export': typeof AuthedModelosExportRoute
   '/atendimento/$id': typeof AuthedAtendimentoIdRoute
   '/atendimento/novo': typeof AuthedAtendimentoNovoRoute
   '/processo/$attendanceId': typeof AuthedProcessoAttendanceIdRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/_authed/agenda': typeof AuthedAgendaRoute
   '/_authed/dashboard': typeof AuthedDashboardRoute
   '/_authed/modelos': typeof AuthedModelosRoute
+  '/_authed/modelos-export': typeof AuthedModelosExportRoute
   '/_authed/atendimento/$id': typeof AuthedAtendimentoIdRoute
   '/_authed/atendimento/novo': typeof AuthedAtendimentoNovoRoute
   '/_authed/processo/$attendanceId': typeof AuthedProcessoAttendanceIdRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/dashboard'
     | '/modelos'
+    | '/modelos-export'
     | '/atendimento/$id'
     | '/atendimento/novo'
     | '/processo/$attendanceId'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/dashboard'
     | '/modelos'
+    | '/modelos-export'
     | '/atendimento/$id'
     | '/atendimento/novo'
     | '/processo/$attendanceId'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/_authed/agenda'
     | '/_authed/dashboard'
     | '/_authed/modelos'
+    | '/_authed/modelos-export'
     | '/_authed/atendimento/$id'
     | '/_authed/atendimento/novo'
     | '/_authed/processo/$attendanceId'
@@ -139,11 +151,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed': {
@@ -153,18 +165,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed/modelos': {
-      id: '/_authed/modelos'
-      path: '/modelos'
-      fullPath: '/modelos'
-      preLoaderRoute: typeof AuthedModelosRouteImport
+    '/_authed/agenda': {
+      id: '/_authed/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof AuthedAgendaRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/dashboard': {
@@ -174,25 +186,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedDashboardRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/agenda': {
-      id: '/_authed/agenda'
-      path: '/agenda'
-      fullPath: '/agenda'
-      preLoaderRoute: typeof AuthedAgendaRouteImport
+    '/_authed/modelos': {
+      id: '/_authed/modelos'
+      path: '/modelos'
+      fullPath: '/modelos'
+      preLoaderRoute: typeof AuthedModelosRouteImport
       parentRoute: typeof AuthedRoute
     }
-    '/_authed/processo/$attendanceId': {
-      id: '/_authed/processo/$attendanceId'
-      path: '/processo/$attendanceId'
-      fullPath: '/processo/$attendanceId'
-      preLoaderRoute: typeof AuthedProcessoAttendanceIdRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/atendimento/novo': {
-      id: '/_authed/atendimento/novo'
-      path: '/atendimento/novo'
-      fullPath: '/atendimento/novo'
-      preLoaderRoute: typeof AuthedAtendimentoNovoRouteImport
+    '/_authed/modelos-export': {
+      id: '/_authed/modelos-export'
+      path: '/modelos-export'
+      fullPath: '/modelos-export'
+      preLoaderRoute: typeof AuthedModelosExportRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/atendimento/$id': {
@@ -202,6 +207,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAtendimentoIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/atendimento/novo': {
+      id: '/_authed/atendimento/novo'
+      path: '/atendimento/novo'
+      fullPath: '/atendimento/novo'
+      preLoaderRoute: typeof AuthedAtendimentoNovoRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/processo/$attendanceId': {
+      id: '/_authed/processo/$attendanceId'
+      path: '/processo/$attendanceId'
+      fullPath: '/processo/$attendanceId'
+      preLoaderRoute: typeof AuthedProcessoAttendanceIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
   }
 }
 
@@ -209,6 +228,7 @@ interface AuthedRouteChildren {
   AuthedAgendaRoute: typeof AuthedAgendaRoute
   AuthedDashboardRoute: typeof AuthedDashboardRoute
   AuthedModelosRoute: typeof AuthedModelosRoute
+  AuthedModelosExportRoute: typeof AuthedModelosExportRoute
   AuthedAtendimentoIdRoute: typeof AuthedAtendimentoIdRoute
   AuthedAtendimentoNovoRoute: typeof AuthedAtendimentoNovoRoute
   AuthedProcessoAttendanceIdRoute: typeof AuthedProcessoAttendanceIdRoute
@@ -218,6 +238,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedAgendaRoute: AuthedAgendaRoute,
   AuthedDashboardRoute: AuthedDashboardRoute,
   AuthedModelosRoute: AuthedModelosRoute,
+  AuthedModelosExportRoute: AuthedModelosExportRoute,
   AuthedAtendimentoIdRoute: AuthedAtendimentoIdRoute,
   AuthedAtendimentoNovoRoute: AuthedAtendimentoNovoRoute,
   AuthedProcessoAttendanceIdRoute: AuthedProcessoAttendanceIdRoute,
@@ -234,3 +255,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
