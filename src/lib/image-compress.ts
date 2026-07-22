@@ -11,10 +11,7 @@ export interface CompressOptions {
   mimeType?: string; // default image/jpeg
 }
 
-export async function compressImageToDataUrl(
-  file: File,
-  opts: CompressOptions = {},
-): Promise<string> {
+async function compressImageBlob(file: File, opts: CompressOptions = {}): Promise<Blob> {
   const maxSide = opts.maxSide ?? 1600;
   const quality = opts.quality ?? 0.85;
   const mimeType = opts.mimeType ?? "image/jpeg";
@@ -34,9 +31,7 @@ export async function compressImageToDataUrl(
             height: targetH,
           });
     const ctx = (canvas as HTMLCanvasElement | OffscreenCanvas).getContext("2d") as
-      | CanvasRenderingContext2D
-      | OffscreenCanvasRenderingContext2D
-      | null;
+      CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
     if (!ctx) throw new Error("canvas 2d indisponível");
     ctx.drawImage(bitmap, 0, 0, targetW, targetH);
     bitmap.close?.();
@@ -48,11 +43,38 @@ export async function compressImageToDataUrl(
             (canvas as HTMLCanvasElement).toBlob(resolve, mimeType, quality),
           );
     if (!blob) throw new Error("falha ao gerar blob");
-    return await blobToDataUrl(blob);
+    return blob;
   } catch {
-    // Fallback: envia o arquivo original sem compressão.
-    return await blobToDataUrl(file);
+    // Formatos que o navegador não consegue decodificar continuam sendo
+    // enviados no original em vez de bloquear o atendimento.
+    return file;
   }
+}
+
+/**
+ * Prepara uma imagem para Storage/IA, preservando o nome original para a UI
+ * e usando uma extensão coerente com o conteúdo reencodado.
+ */
+export async function compressImageForUpload(
+  file: File,
+  opts: CompressOptions = {},
+): Promise<File> {
+  const blob = await compressImageBlob(file, opts);
+  if (blob === file) return file;
+
+  const extension = blob.type === "image/webp" ? "webp" : "jpg";
+  const baseName = file.name.replace(/\.[^.]+$/, "") || "imagem";
+  return new File([blob], `${baseName}.${extension}`, {
+    type: blob.type,
+    lastModified: file.lastModified,
+  });
+}
+
+export async function compressImageToDataUrl(
+  file: File,
+  opts: CompressOptions = {},
+): Promise<string> {
+  return await blobToDataUrl(await compressImageBlob(file, opts));
 }
 
 function blobToDataUrl(blob: Blob): Promise<string> {
