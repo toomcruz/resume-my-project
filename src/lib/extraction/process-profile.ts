@@ -178,15 +178,15 @@ export function getExtractionProfile(
   process: string | null | undefined,
   subprocess?: string | null,
 ): ExtractionProfile {
-  const base = PROFILES[String(process ?? "").trim().toLowerCase()] ?? DEFAULT_PROFILE;
+  const normalizedProcess = String(process ?? "").trim().toLowerCase();
+  const normalizedSubprocess = String(subprocess ?? "").trim().toLowerCase();
+  const base = PROFILES[normalizedProcess] ?? DEFAULT_PROFILE;
 
-  if (process === "sepultamento" && subprocess === "quadra_geral") {
+  if (normalizedProcess === "sepultamento" && normalizedSubprocess === "quadra_geral") {
     return {
       ...base,
-      expectedFields: base.expectedFields.filter(
-        (field) => !["terreno", "gaveta"].includes(field),
-      ),
-      instructions: `${base.instructions} Para quadra geral, não transforme a expressão “Quadra Geral” em número de rua, terreno ou gaveta.`,
+      expectedFields: base.expectedFields.filter((field) => field !== "terreno"),
+      instructions: `${base.instructions} Para quadra geral, não transforme a expressão “Quadra Geral” em número de rua ou terreno. Leia o número da gaveta somente quando estiver explicitamente informado.`,
     };
   }
 
