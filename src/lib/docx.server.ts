@@ -1,6 +1,7 @@
 // Server-only DOCX helpers using docxtemplater + pizzip.
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import { postProcessBurialAuthorization } from "./burial-order-authorization";
 import {
   isBurialOrderTemplate,
   postProcessBurialOrder,
@@ -174,7 +175,10 @@ export function fillDocx(docxBuffer: ArrayBuffer, data: Record<string, string>):
     });
     doc.render(renderData);
     const outputZip = doc.getZip();
-    if (burialOrder) postProcessBurialOrder(outputZip, renderData);
+    if (burialOrder) {
+      postProcessBurialOrder(outputZip, renderData);
+      postProcessBurialAuthorization(outputZip, renderData);
+    }
     return outputZip.generate({
       type: "uint8array",
       compression: "DEFLATE",
