@@ -16,32 +16,30 @@ const COMMON_PERSON_FIELDS = [
 
 const PROFILES: Record<string, ExtractionProfile> = {
   sepultamento: {
+    // Campos de data, horário, sala e local não são lidos das fotos. Eles vêm
+    // exclusivamente da triagem do atendimento, evitando que endereço ou número
+    // de apartamento sejam transformados em sala de velório.
     expectedFields: [
-      ...COMMON_PERSON_FIELDS,
+      "nome_falecido",
       "nome_declarante",
       "cpf_declarante",
       "rg_declarante",
       "endereco_declarante",
+      "cep_declarante",
       "telefone_declarante",
+      "profissao_declarante",
       "grau_parentesco_declarante",
       "numero_do",
       "inscricao_gscemi",
       "placa_identificacao",
-      "data_sepultamento",
-      "hora_sepultamento",
-      "local_sepultamento",
-      "quadra",
-      "rua",
-      "terreno",
-      "gaveta",
-      "sala_velorio",
-      "inicio_velorio",
-      "fim_velorio",
-      "funeraria",
-      "numero_contratacao",
+      "livro_obito",
+      "folha_obito",
+      "numero_nota_contratacao",
       "tipo_contratacao",
       "padrao_funeral",
       "covid_lacrado",
+      "empresa_agencia",
+      "familia_presente",
     ],
     criticalFields: [
       "nome_falecido",
@@ -49,11 +47,9 @@ const PROFILES: Record<string, ExtractionProfile> = {
       "cpf_declarante",
       "grau_parentesco_declarante",
       "numero_do",
-      "data_sepultamento",
-      "hora_sepultamento",
     ],
     instructions:
-      "Leia somente dados usados nos documentos de sepultamento. Na Declaração de Óbito, priorize falecido, declarante, CPF, RG, endereço, telefone, parentesco e número da DO. Na Nota de Contratação, leia número, funerária/agência, modalidade e COVID/lacrado. Em telas GSCEMI, leia inscrição e placa somente quando o rótulo estiver visível. Não procure dados fora desta lista e não invente campos ausentes.",
+      "Leia somente dados presentes nos documentos. Na Declaração de Óbito, o DECLARANTE é a fonte exclusiva para nome, CPF, RG, endereço, CEP, telefone, profissão e parentesco usados na Ordem de Sepultamento. Na Nota de Contratação, leia somente número da nota, Empresa/Bloco/Agência, modalidade do funeral e COVID/Lacrado. Em telas GSCEMI, leia inscrição, placa, livro e folha apenas quando o rótulo correspondente estiver visível. Não extraia sala, data, horário ou local do sepultamento das imagens: esses campos vêm da triagem. Não invente campos ausentes e não misture declarante, contratante, concessionário ou falecido.",
     concurrency: 2,
   },
   exumacao: {
@@ -185,8 +181,7 @@ export function getExtractionProfile(
   if (normalizedProcess === "sepultamento" && normalizedSubprocess === "quadra_geral") {
     return {
       ...base,
-      expectedFields: base.expectedFields.filter((field) => field !== "terreno"),
-      instructions: `${base.instructions} Para quadra geral, não transforme a expressão “Quadra Geral” em número de rua ou terreno. Leia o número da gaveta somente quando estiver explicitamente informado.`,
+      instructions: `${base.instructions} Para quadra geral, a expressão “Quadra Geral” é apenas o tipo do atendimento e nunca deve ser copiada para Rua, terreno, gaveta ou outro identificador.`,
     };
   }
 
