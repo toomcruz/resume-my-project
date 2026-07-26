@@ -11,6 +11,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  buildExtractionContext,
+  getExtractionProfile,
+} from "@/lib/extraction/process-profile";
 
 const Input = z.object({
   attendanceId: z.string().uuid(),
@@ -89,32 +93,23 @@ export const extractAttendanceVision = createServerFn({ method: "POST" })
               Awaited<ReturnType<typeof extractAttendanceVisionCore>>["state"] | undefined)
           : undefined;
 
-      // Chaves canônicas esperadas pelo processo — orienta a IA a preencher
-      // exatamente os campos obrigatórios que o revisor cobra na UI.
-      const { getFieldsForProcess } = await import("@/lib/extraction/field-catalog");
-      const expectedCanonicalKeys = getFieldsForProcess(attendance.process).map((f) => f.key);
+      // Perfil enxuto por processo: a IA recebe apenas os campos que os documentos
+      // daquele atendimento realmente usam, em vez de todos os placeholders do site.
+      const profile = getExtractionProfile(attendance.process, attendance.subprocess);
 
       const { state, errors } = await extractAttendanceVisionCore({
         images: prepared,
         processLabel: attendance.process,
-        contextHints: `Subprocesso: ${attendance.subprocess ?? "-"}. Detalhes: ${JSON.stringify(
-          attendance.subprocess_details ?? {},
-        )}`,
-        expectedCanonicalKeys,
+        contextHints: buildExtractionContext(attendance.process, attendance.subprocess),
+        expectedCanonicalKeys: [...profile.expectedFields],
         previousState,
-        concurrency: 1,
+        // Duas imagens em paralelo reduzem o tempo total sem provocar o pico de
+        // requisições que ocorreria processando o lote inteiro simultaneamente.
+        concurrency: Math.min(profile.concurrency, prepared.length),
       });
 
-      // Nunca sinaliza sucesso parcial. Se uma única foto falhar, o chamador
-      // aciona a extração complementar em lote em vez de ocultar a perda.
-      if (errors.length > 0) {
-        throw new Error(
-          `Extração incompleta: ${errors.length} de ${prepared.length} imagem(ns) não foram processadas.`,
-        );
-      }
-
-      // Falha total: nenhum campo/pessoa extraído em nenhuma imagem → deixa
-      // que o chamador acione o fallback legado.
+      // Resultado parcial é melhor do que reler todo o lote e perder o atendimento.
+      // Só falha de verdade quando nenhuma imagem produziu qualquer dado.
       const hadAnyOutput = state.persons.length > 0 || Object.keys(state.rawByImage).length > 0;
       if (!hadAnyOutput) {
         throw new Error(
@@ -170,6 +165,7 @@ export const extractAttendanceVision = createServerFn({ method: "POST" })
         ...finalFlat,
         _vision: state,
         _visionMeta: finalMeta,
+        _visionErrors: errors,
       };
 
       const { error: saveError } = await supabase
