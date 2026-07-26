@@ -19,8 +19,26 @@ function normalizedLabel(value: string): string {
 }
 
 function requestedFields(params: ExtractParams): string[] {
-  const fields = new Set(params.fields);
-  if (normalizedLabel(params.processLabel).includes("sepultamento")) {
+  const isSepultamento = normalizedLabel(params.processLabel).includes("sepultamento");
+  const unsafeDirectIdentifiers = new Set([
+    "inscrgs",
+    "inscricao_gs",
+    "inscricao_gscemi",
+    "numero_inscricao",
+    "numdo",
+    "numero_do",
+    "numero_declaracao_obito",
+    "livroobito",
+    "livro_obito",
+    "placa",
+    "placa_identificacao",
+  ]);
+  const fields = new Set(
+    params.fields.filter(
+      (field) => !isSepultamento || !unsafeDirectIdentifiers.has(normalizedLabel(field)),
+    ),
+  );
+  if (isSepultamento) {
     // Campos sem placeholder visual, mas necessários para preencher corretamente
     // a Ordem de Sepultamento e distinguir declarante, contratante e modalidade.
     for (const field of [
@@ -33,6 +51,15 @@ function requestedFields(params: ExtractParams): string[] {
       "tipo_contratacao",
       "padrao_funeral",
       "covid_lacrado",
+      // Identificadores protegidos: valor + prova literal obrigatória.
+      "inscricao_gscemi",
+      "__evidence_inscricao_gscemi",
+      "numero_declaracao_obito",
+      "__evidence_numero_declaracao_obito",
+      "livro_obito",
+      "__evidence_livro_obito",
+      "placa_identificacao",
+      "__evidence_placa_identificacao",
     ]) {
       fields.add(field);
     }
@@ -57,7 +84,15 @@ Regras específicas da Ordem de Sepultamento:
 - Formate CPF como 000.000.000-00 e telefone como (11)00000-0000.
 - Na Nota de Contratação, extraia tipo_contratacao e padrao_funeral usando somente uma destas opções: SOCIAL, DOADOR, PADRAO, POPULAR, LUXO ou DE_FORA. Escolha apenas uma e não use o valor total para decidir.
 - covid_lacrado deve ser SIM ou NAO somente quando isso estiver explicitamente marcado ou escrito; caso contrário, deixe vazio.
-- Em caso de conflito entre documentos, a Declaração de Óbito vence para os dados do declarante e a Nota de Contratação vence para número da nota, agência e modalidade do funeral.`
+- Em caso de conflito entre documentos, a Declaração de Óbito vence para os dados do declarante e a Nota de Contratação vence para número da nota, agência e modalidade do funeral.
+
+REGRA ANTIALUCINAÇÃO PARA IDENTIFICADORES:
+- inscrição_gscemi só pode ser preenchida quando o rótulo visível disser explicitamente Inscrição GSCEMI ou Inscrição GS. Um CPF, número de registro, contrato ou qualquer outro número NÃO pode ser reutilizado.
+- numero_declaracao_obito só pode ser preenchido quando o rótulo visível disser Declaração de Óbito, Nº da DO ou Número da DO.
+- livro_obito só pode ser preenchido quando o rótulo visível disser explicitamente Livro de Óbito. Não transforme número de registro, folha, lote, contrato ou inscrição em livro.
+- placa_identificacao só pode ser preenchida quando houver rótulo Placa de Identificação ou Termo/Nº de Controle.
+- Para cada identificador preenchido, o campo __evidence correspondente deve copiar literalmente o rótulo e o valor lidos na imagem. Exemplo: "Nº de Inscrição (GSCEMI): 000123".
+- Se o rótulo exato não estiver visível, deixe TANTO o valor QUANTO o __evidence correspondente como string vazia. Nunca complete por contexto, semelhança ou suposição.`
     : "";
 
   const systemPrompt = `Você é um assistente que extrai dados de documentos e prints para atendimento em cemitério (${params.processLabel}).
