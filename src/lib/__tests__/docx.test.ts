@@ -56,20 +56,22 @@ function alternateContentForShape(xml: string, docPrId: number): string {
   return xml.slice(start, end + closing.length);
 }
 
-function expectShapeOutline(xml: string, docPrId: number, color: string): void {
+function expectShapeFill(xml: string, docPrId: number, color: string): void {
   const shape = alternateContentForShape(xml, docPrId);
   expect(shape, `shape ${docPrId} should exist`).not.toBe("");
-  expect(shape, `shape ${docPrId} should use outline ${color}`).toMatch(
+  expect(shape, `shape ${docPrId} should use fill ${color}`).toMatch(
     new RegExp(
-      `<a:ln(?:\\s[^>]*)?>[\\s\\S]*?<a:solidFill><a:srgbClr val="${color}"\\/><\\/a:solidFill>`,
+      `<wps:spPr>[\\s\\S]*?<a:solidFill><a:srgbClr val="${color}"\\/><\\/a:solidFill>`,
     ),
   );
 }
 
 function paragraphContaining(xml: string, text: string): string {
-  return (
-    xml.match(new RegExp(`<w:p\\b[\\s\\S]*?${text}[\\s\\S]*?<\\/w:p>`))?.[0] ?? ""
-  );
+  return xml.match(new RegExp(`<w:p\\b[\\s\\S]*?${text}[\\s\\S]*?<\\/w:p>`))?.[0] ?? "";
+}
+
+function countOccurrences(text: string, needle: string): number {
+  return text.split(needle).length - 1;
 }
 
 function expectNoUnresolvedPlaceholders(output: Uint8Array, templatePath: string): void {
@@ -159,27 +161,67 @@ describe("docx official templates", () => {
     expect(text).toContain("(11)98765-4321");
     expect(text).toContain("GENRO");
 
-    // Quadra geral: Concessão fica inteiramente em branco e apenas Quadra/SIM é azul.
-    expectShapeOutline(xml, 1, "000000");
-    expectShapeOutline(xml, 2, "000000");
-    expectShapeOutline(xml, 3, "156082");
-    expectShapeOutline(xml, 4, "000000");
+    // Quadra geral: Concessão fica inteiramente em branco e apenas Quadra/SIM é preenchida.
+    expectShapeFill(xml, 1, "FFFFFF");
+    expectShapeFill(xml, 2, "FFFFFF");
+    expectShapeFill(xml, 3, "000000");
+    expectShapeFill(xml, 4, "FFFFFF");
 
-    // Contratação: somente Popular é marcada.
-    expectShapeOutline(xml, 8, "000000");
-    expectShapeOutline(xml, 9, "000000");
-    expectShapeOutline(xml, 10, "156082");
-    expectShapeOutline(xml, 11, "000000");
-    expectShapeOutline(xml, 12, "000000");
-    expectShapeOutline(xml, 13, "000000");
+    // Contratação: somente Popular é preenchida.
+    expectShapeFill(xml, 8, "FFFFFF");
+    expectShapeFill(xml, 9, "FFFFFF");
+    expectShapeFill(xml, 10, "000000");
+    expectShapeFill(xml, 11, "FFFFFF");
+    expectShapeFill(xml, 12, "FFFFFF");
+    expectShapeFill(xml, 13, "FFFFFF");
 
-    // COVID/Lacrado passa a usar dois retângulos do Word, como os campos superiores.
-    expectShapeOutline(xml, 114, "000000");
-    expectShapeOutline(xml, 14, "156082");
+    // COVID/Lacrado passa a usar dois retângulos do Word, com somente NÃO preenchido.
+    expectShapeFill(xml, 114, "FFFFFF");
+    expectShapeFill(xml, 14, "000000");
     expect(text).not.toMatch(/COVID\/Lacrado:[^\n]*\[/i);
 
-    // O nome da pessoa falecida deve usar 16 pt (32 half-points no OOXML).
-    expect(paragraphContaining(xml, "GERALDA TESTE")).toContain('<w:sz w:val="32"/>');
+    // O nome da pessoa falecida usa 16 pt também no nível do run.
+    const deceasedParagraph = paragraphContaining(xml, "GERALDA TESTE");
+    expect(deceasedParagraph).toContain('<w:sz w:val="32"/>');
+    expect(deceasedParagraph).toMatch(/<w:rPr>[\s\S]*?<w:sz w:val="32"\/>/);
+  });
+
+  it("matches the manual administration reference without mixing room and address", () => {
+    const template = readTemplate("public/templates/official/sepultamento/ordem-sepultamento.docx");
+    const output = fillDocx(template, {
+      nomeFal: "GERALDO CLEBIS MAGALHÃES",
+      nome_declarante: "MARCOS ROBERTO DE OLIVEIRA TACCONI",
+      cpf_declarante: "16504040850",
+      endereco_declarante:
+        "RUA CÉSAR VALLEJO, 1360 APT 141 BAIRRO: REAL PARQUE - SÃO PAULO/SP CEP: 05685-000",
+      telefone_declarante: "11983440011",
+      profissao_declarante: "MÉDICO",
+      grau_parentesco_declarante: "GENRO",
+      sala_velorio: "A RUA CÉSAR VALLEJO, 1360",
+      numero_declaracao_obito: "0100039350",
+      placa: "118822",
+      dataSep: "26/07/2026",
+      horaSep: "14:00",
+      dataExt: "São Paulo, 26 de julho de 2026",
+      numero_nota_contratacao: "00104494",
+      empresa_agencia: "CONSOLARE",
+      padrao_funeral: "PADRÃO",
+      covid_lacrado: "NAO",
+      quadra_geral_gaveta: "SIM",
+      concessao: "NAO",
+    });
+    const text = renderedText(output);
+    const xml = documentXml(output);
+
+    expect(text).toContain("01-00039350");
+    expect(text).toContain("Profissão: MÉDICO");
+    expect(text).toContain("CEP: 05685-000  Telefone: (11)98344-0011");
+    expect(text).not.toContain("RG:");
+    expect(text).not.toContain("São Paulo, São Paulo,");
+    expect(countOccurrences(text, "RUA CÉSAR VALLEJO")).toBe(1);
+    expectShapeFill(xml, 9, "000000");
+    expectShapeFill(xml, 10, "FFFFFF");
+    expect(paragraphContaining(xml, "26/07/2026")).toContain('<w:color w:val="FF0000"/>');
   });
 
   it("keeps operational print templates free of hidden Word ink", () => {
