@@ -42,6 +42,36 @@ function renderedText(docx: Uint8Array): string {
     .join("\n");
 }
 
+function documentXml(docx: Uint8Array): string {
+  return new PizZip(docx).file("word/document.xml")?.asText() ?? "";
+}
+
+function alternateContentForShape(xml: string, docPrId: number): string {
+  const markerIndex = xml.indexOf(`<wp:docPr id="${docPrId}"`);
+  if (markerIndex < 0) return "";
+  const start = xml.lastIndexOf("<mc:AlternateContent", markerIndex);
+  const closing = "</mc:AlternateContent>";
+  const end = xml.indexOf(closing, markerIndex);
+  if (start < 0 || end < 0) return "";
+  return xml.slice(start, end + closing.length);
+}
+
+function expectShapeOutline(xml: string, docPrId: number, color: string): void {
+  const shape = alternateContentForShape(xml, docPrId);
+  expect(shape, `shape ${docPrId} should exist`).not.toBe("");
+  expect(shape, `shape ${docPrId} should use outline ${color}`).toMatch(
+    new RegExp(
+      `<a:ln(?:\\s[^>]*)?>[\\s\\S]*?<a:solidFill><a:srgbClr val="${color}"\\/><\\/a:solidFill>`,
+    ),
+  );
+}
+
+function paragraphContaining(xml: string, text: string): string {
+  return (
+    xml.match(new RegExp(`<w:p\\b[\\s\\S]*?${text}[\\s\\S]*?<\\/w:p>`))?.[0] ?? ""
+  );
+}
+
 function expectNoUnresolvedPlaceholders(output: Uint8Array, templatePath: string): void {
   expect(
     renderedText(output),
@@ -102,6 +132,54 @@ describe("docx official templates", () => {
     const output = fillDocx(template, fakeValuesFor(placeholders));
 
     expect(output.byteLength).toBeLessThan(template.byteLength * 2);
+  });
+
+  it("fills the burial order from the death declarant and marks only the applicable boxes", () => {
+    const template = readTemplate("public/templates/official/sepultamento/ordem-sepultamento.docx");
+    const output = fillDocx(template, {
+      nomeFal: "GERALDA TESTE",
+      nomeResp: "PESSOA INCORRETA",
+      cpfResp: "99999999999",
+      telResp: "11999999999",
+      parent: "FILHO",
+      nome_declarante: "DECLARANTE CORRETO",
+      cpf_declarante: "12345678901",
+      telefone_declarante: "11987654321",
+      grau_parentesco_declarante: "GENRO",
+      quadra_geral_gaveta: "SIM",
+      concessao: "NAO",
+      padrao_funeral: "POPULAR",
+      covid_lacrado: "NAO",
+    });
+    const text = renderedText(output);
+    const xml = documentXml(output);
+
+    expect(text).toContain("DECLARANTE CORRETO");
+    expect(text).toContain("123.456.789-01");
+    expect(text).toContain("(11)98765-4321");
+    expect(text).toContain("GENRO");
+
+    // Quadra geral: Concessão fica inteiramente em branco e apenas Quadra/SIM é azul.
+    expectShapeOutline(xml, 1, "000000");
+    expectShapeOutline(xml, 2, "000000");
+    expectShapeOutline(xml, 3, "156082");
+    expectShapeOutline(xml, 4, "000000");
+
+    // Contratação: somente Popular é marcada.
+    expectShapeOutline(xml, 8, "000000");
+    expectShapeOutline(xml, 9, "000000");
+    expectShapeOutline(xml, 10, "156082");
+    expectShapeOutline(xml, 11, "000000");
+    expectShapeOutline(xml, 12, "000000");
+    expectShapeOutline(xml, 13, "000000");
+
+    // COVID/Lacrado passa a usar dois retângulos do Word, como os campos superiores.
+    expectShapeOutline(xml, 114, "000000");
+    expectShapeOutline(xml, 14, "156082");
+    expect(text).not.toMatch(/COVID\/Lacrado:[^\n]*\[/i);
+
+    // O nome da pessoa falecida deve usar 16 pt (32 half-points no OOXML).
+    expect(paragraphContaining(xml, "GERALDA TESTE")).toContain('<w:sz w:val="32"/>');
   });
 
   it("keeps operational print templates free of hidden Word ink", () => {
