@@ -31,12 +31,24 @@ export function computeExtractionCoverage(
   return found / uniqueKeys.length;
 }
 
-/** Aciona a leitura complementar quando a primeira extração ficou esparsa. */
+/**
+ * Aciona a leitura complementar somente quando a primeira leitura realmente
+ * não trouxe conteúdo útil. A lista da tela mistura chaves canônicas com
+ * placeholders dos DOCX; exigir 75% fazia a mesma imagem ser enviada duas
+ * vezes mesmo quando a IA já havia encontrado dados suficientes para revisão.
+ */
 export function needsComplementaryExtraction(
   expectedKeys: readonly string[],
   extracted: Record<string, string>,
-  minimumCoverage = 0.75,
+  minimumCoverage = 0.4,
 ): boolean {
+  const populatedFields = Object.values(extracted).filter((value) => value?.trim()).length;
+
+  // Se já há um conjunto mínimo de dados, seguimos para revisão humana em vez
+  // de duplicar toda a leitura e arriscar timeout. Campos ausentes continuam
+  // destacados normalmente na tela.
+  if (populatedFields >= 6) return false;
+
   return (
     expectedKeys.length > 0 && computeExtractionCoverage(expectedKeys, extracted) < minimumCoverage
   );
