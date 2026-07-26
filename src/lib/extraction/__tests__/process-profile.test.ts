@@ -8,17 +8,22 @@ describe("perfil enxuto de extração", () => {
     expect(profile.expectedFields).toContain("nome_falecido");
     expect(profile.expectedFields).toContain("numero_do");
     expect(profile.expectedFields).toContain("padrao_funeral");
+    expect(profile.expectedFields).toContain("profissao_declarante");
+    expect(profile.expectedFields).toContain("numero_nota_contratacao");
     expect(profile.expectedFields).not.toContain("valor_exumacao");
-    expect(profile.expectedFields.length).toBeLessThan(35);
+    expect(profile.expectedFields.length).toBeLessThan(30);
     expect(profile.concurrency).toBe(2);
   });
 
-  it("não pede terreno na quadra geral, mas mantém a gaveta explícita", () => {
+  it("não pede à IA campos que pertencem à triagem do sepultamento", () => {
     const profile = getExtractionProfile("sepultamento", "quadra_geral");
 
-    expect(profile.expectedFields).not.toContain("terreno");
-    expect(profile.expectedFields).toContain("gaveta");
+    expect(profile.expectedFields).not.toContain("sala_velorio");
+    expect(profile.expectedFields).not.toContain("data_sepultamento");
+    expect(profile.expectedFields).not.toContain("hora_sepultamento");
+    expect(profile.expectedFields).not.toContain("local_sepultamento");
     expect(profile.instructions).toContain("Quadra Geral");
+    expect(profile.instructions).toContain("triagem");
   });
 
   it("gera contexto curto e específico do atendimento", () => {
