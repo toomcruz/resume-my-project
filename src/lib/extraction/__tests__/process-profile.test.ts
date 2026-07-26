@@ -13,11 +13,11 @@ describe("perfil enxuto de extração", () => {
     expect(profile.concurrency).toBe(2);
   });
 
-  it("não pede terreno e gaveta na quadra geral", () => {
+  it("não pede terreno na quadra geral, mas mantém a gaveta explícita", () => {
     const profile = getExtractionProfile("sepultamento", "quadra_geral");
 
     expect(profile.expectedFields).not.toContain("terreno");
-    expect(profile.expectedFields).not.toContain("gaveta");
+    expect(profile.expectedFields).toContain("gaveta");
     expect(profile.instructions).toContain("Quadra Geral");
   });
 
