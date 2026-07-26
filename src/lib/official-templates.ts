@@ -1,3 +1,5 @@
+import { guardBurialOrderSourceFields } from "./burial-order-source-guard";
+
 export type OfficialProcessKey =
   | "sepultamento"
   | "exumacao"
@@ -389,8 +391,8 @@ const SYNONYMS: Record<string, string[]> = {
   cpfRequerente: ["cpf_requerente", "cpf_responsavel", "cpfResp"],
   enderecoRequerente: ["endereco_requerente", "endereco_responsavel", "endResp", "endereco"],
   telefoneRequerente: ["telefone_requerente", "telefone_responsavel", "telResp", "telefone"],
-  inscricaoGS: ["inscricao_gs", "inscrGS", "numero_inscricao"],
-  numeroDO: ["numero_do", "numDO"],
+  inscricaoGS: ["inscricao_gscemi", "inscricao_gs", "inscrGS"],
+  numeroDO: ["numero_declaracao_obito", "numero_do", "numDO"],
   dataSepultamento: ["data_sepultamento", "dataSep"],
   horaSepultamento: ["hora_sepultamento", "horaSep"],
   dataAgendamento: ["data_agendamento", "data_agendada", "dataAg"],
@@ -426,13 +428,18 @@ function baseOfficialId(storageId: string): string {
 }
 
 export function applyOfficialTemplateAliases(
-  input: Record<string, string>,
+  input: Record<string, unknown>,
   storagePath?: string | null,
 ): Record<string, string> {
-  const output = { ...input };
+  const output = Object.fromEntries(
+    Object.entries(input)
+      .filter(([, value]) => typeof value === "string")
+      .map(([key, value]) => [key, String(value)]),
+  ) as Record<string, string>;
   const storageId = getOfficialStorageId(storagePath);
   if (!storageId) return output;
-  const aliases = ALIASES[baseOfficialId(storageId)] ?? {};
+  const baseId = baseOfficialId(storageId);
+  const aliases = ALIASES[baseId] ?? {};
 
   for (const [canonical, target] of Object.entries(aliases)) {
     if (String(output[target] ?? "").trim()) continue;
@@ -447,5 +454,7 @@ export function applyOfficialTemplateAliases(
     if (source) output[target] = output[source];
   }
 
-  return output;
+  return baseId === "ordem-sepultamento"
+    ? guardBurialOrderSourceFields(input, output)
+    : output;
 }
