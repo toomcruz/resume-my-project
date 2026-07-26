@@ -1,5 +1,6 @@
 // Server-only helper: extrai dados estruturados com Gemini via Supabase.
 import { callAIGateway } from "@/lib/ai-gateway.server";
+import { getExtractionProfile } from "@/lib/extraction/process-profile";
 
 export interface ExtractParams {
   imageDataUrls: string[]; // data:image/...;base64,... OR https URLs
@@ -7,7 +8,7 @@ export interface ExtractParams {
   processLabel: string;
   contextHints?: string;
   model?: string; // default gemini-2.5-flash
-  timeoutMs?: number; // default 20000
+  timeoutMs?: number; // default 35000
 }
 
 function normalizedLabel(value: string): string {
@@ -18,8 +19,22 @@ function normalizedLabel(value: string): string {
     .toLowerCase();
 }
 
+function processKey(value: string): string {
+  return normalizedLabel(value).replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
 function requestedFields(params: ExtractParams): string[] {
-  const isSepultamento = normalizedLabel(params.processLabel).includes("sepultamento");
+  const key = processKey(params.processLabel);
+  const knownProcess = [
+    "sepultamento",
+    "exumacao",
+    "ossario",
+    "translado",
+    "atualizacao_cadastral",
+  ].includes(key);
+  const profile = getExtractionProfile(key);
+  const sourceFields = knownProcess ? profile.expectedFields : params.fields;
+  const isSepultamento = key === "sepultamento";
   const unsafeDirectIdentifiers = new Set([
     "inscrgs",
     "inscricao_gs",
@@ -34,7 +49,7 @@ function requestedFields(params: ExtractParams): string[] {
     "placa_identificacao",
   ]);
   const fields = new Set(
-    params.fields.filter(
+    sourceFields.filter(
       (field) => !isSepultamento || !unsafeDirectIdentifiers.has(normalizedLabel(field)),
     ),
   );
@@ -72,7 +87,7 @@ export async function extractFromImages(params: ExtractParams): Promise<Record<s
   const fieldsList = fields.length
     ? fields.join(", ")
     : "nome_falecido, cpf, data_nascimento, data_falecimento, data_sepultamento, local_sepultamento, nome_responsavel, cpf_responsavel, endereco, telefone";
-  const isSepultamento = normalizedLabel(params.processLabel).includes("sepultamento");
+  const isSepultamento = processKey(params.processLabel) === "sepultamento";
 
   const sepultamentoRules = isSepultamento
     ? `
@@ -116,7 +131,7 @@ ${params.contextHints ? `\nContexto adicional: ${params.contextHints}` : ""}`;
   ];
 
   const controller = new AbortController();
-  const timeoutMs = params.timeoutMs ?? 20000;
+  const timeoutMs = params.timeoutMs ?? 35000;
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
