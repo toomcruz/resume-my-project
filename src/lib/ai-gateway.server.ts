@@ -6,6 +6,10 @@
  * desenvolvimento/testes, uma GEMINI_API_KEY server-only também é aceita.
  */
 import { getRequest } from "@tanstack/react-start/server";
+import {
+  SCANNE_SUPABASE_PUBLISHABLE_KEY,
+  SCANNE_SUPABASE_URL,
+} from "@/integrations/supabase/runtime-config";
 
 const GEMINI_OPENAI_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
@@ -39,11 +43,30 @@ export async function callAIGateway(
   deps: AIGatewayDeps = {},
 ): Promise<Response> {
   const doFetch = deps.fetch ?? fetch;
+  const authorization = deps.authHeader ?? currentAuthorizationHeader();
+  const supabaseUrl = deps.supabaseUrl ?? SCANNE_SUPABASE_URL;
+  const publishableKey = deps.supabasePublishableKey ?? SCANNE_SUPABASE_PUBLISHABLE_KEY;
+
+  // Em chamadas autenticadas do site, use sempre a Edge Function do mesmo
+  // projeto onde estão os atendimentos e as imagens. Variáveis antigas da
+  // hospedagem não podem desviar a leitura para outro Supabase.
+  if (authorization) {
+    return doFetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/${EDGE_FUNCTION_NAME}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: publishableKey,
+        Authorization: authorization,
+      },
+      signal: deps.signal,
+      body: JSON.stringify(payload),
+    });
+  }
+
   const directGeminiKey =
     deps.apiKey ?? serverEnv("GEMINI_API_KEY") ?? serverEnv("GOOGLE_AI_API_KEY");
 
-  // Útil em desenvolvimento server-only e torna a migração tolerante caso a
-  // hospedagem já tenha uma chave Gemini configurada.
+  // Mantém execução local e testes sem depender de uma sessão autenticada.
   if (directGeminiKey) {
     return doFetch(GEMINI_OPENAI_URL, {
       method: "POST",
@@ -56,22 +79,5 @@ export async function callAIGateway(
     });
   }
 
-  const supabaseUrl = deps.supabaseUrl ?? serverEnv("SUPABASE_URL");
-  const publishableKey = deps.supabasePublishableKey ?? serverEnv("SUPABASE_PUBLISHABLE_KEY");
-  const authorization = deps.authHeader ?? currentAuthorizationHeader();
-
-  if (!supabaseUrl || !publishableKey || !authorization) {
-    throw new Error("Análise de fotos indisponível: configure GEMINI_API_KEY no Supabase.");
-  }
-
-  return doFetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/${EDGE_FUNCTION_NAME}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: publishableKey,
-      Authorization: authorization,
-    },
-    signal: deps.signal,
-    body: JSON.stringify(payload),
-  });
+  throw new Error("Análise de fotos indisponível: sessão ou GEMINI_API_KEY ausente.");
 }
