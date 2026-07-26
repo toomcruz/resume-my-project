@@ -88,6 +88,54 @@ describe("flattenVisionState", () => {
     expect(flat.cpf_responsavel).toBe("529.982.247-25");
   });
 
+  it("mantém endereço e telefone do falecido separados dos dados do declarante", () => {
+    let s = initialVisionState;
+    s = visionReducer(s, {
+      type: "ingest_extraction",
+      response: response("img1", {
+        documentType: "declaracao_obito",
+        persons: [
+          {
+            temporaryId: "falecido",
+            name: "PESSOA FALECIDA",
+            address: "ENDEREÇO DO FALECIDO",
+            roleCandidates: [
+              {
+                role: "falecido_sepultamento",
+                confidence: 0.99,
+                evidence: "titular da declaração",
+              },
+            ],
+          },
+          {
+            temporaryId: "declarante",
+            name: "MARCOS DECLARANTE",
+            cpf: "165.040.408-50",
+            rg: "1234567",
+            address: "RUA DO DECLARANTE, 100",
+            phone: "(11)98344-0011",
+            roleCandidates: [
+              {
+                role: "declarante",
+                confidence: 0.99,
+                evidence: "campo DECLARANTE",
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const { flat } = flattenVisionState(s);
+    expect(flat.nome_falecido).toBe("PESSOA FALECIDA");
+    expect(flat.endereco).toBeUndefined();
+    expect(flat.nome_declarante).toBe("MARCOS DECLARANTE");
+    expect(flat.cpf_declarante).toBe("165.040.408-50");
+    expect(flat.rg_declarante).toBe("1234567");
+    expect(flat.endereco_declarante).toBe("RUA DO DECLARANTE, 100");
+    expect(flat.telefone_declarante).toBe("(11)98344-0011");
+  });
+
   it("confirmação do usuário sobrescreve valor bruto", () => {
     let s = initialVisionState;
     s = visionReducer(s, {
