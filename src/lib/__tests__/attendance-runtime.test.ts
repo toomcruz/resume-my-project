@@ -33,11 +33,25 @@ describe("extraction coverage", () => {
     );
   });
 
-  it("pede complemento abaixo de 75%", () => {
+  it("pede complemento somente quando a primeira leitura ficou realmente vazia", () => {
     expect(needsComplementaryExtraction(expected, { nome: "Ana" })).toBe(true);
-    expect(needsComplementaryExtraction(expected, { nome: "Ana", cpf: "1", endereco: "Rua" })).toBe(
-      false,
-    );
+    expect(needsComplementaryExtraction(expected, { nome: "Ana", cpf: "1" })).toBe(false);
+  });
+
+  it("não relê o lote quando já existem dados suficientes para revisão", () => {
+    expect(
+      needsComplementaryExtraction(
+        ["nomeFal", "cpfResp", "endResp", "telResp", "numDO", "inscrGS"],
+        {
+          nome_falecido: "ANA",
+          cpf_responsavel: "123",
+          endereco_responsavel: "RUA A",
+          telefone_responsavel: "11999999999",
+          numero_do: "001",
+          funeraria: "FUNERÁRIA X",
+        },
+      ),
+    ).toBe(false);
   });
 });
 
