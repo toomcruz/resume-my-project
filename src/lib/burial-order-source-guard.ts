@@ -14,6 +14,7 @@ type VisionStateLike = {
 };
 
 type VisionMetaLike = {
+  value?: string;
   sourceImageId?: string;
   confirmedByUser?: boolean;
 };
@@ -63,15 +64,30 @@ function evidenceContainsValue(evidence: string, value: string): boolean {
   return normalizeComparable(evidence).includes(expected);
 }
 
-function supportsRuleEvidence(rule: ProtectedFieldRule, evidence: string, value: string): boolean {
-  return Boolean(evidence.trim()) && rule.hasExpectedLabel(normalizeText(evidence)) && evidenceContainsValue(evidence, value);
+function supportsRuleEvidence(
+  rule: ProtectedFieldRule,
+  evidence: string,
+  value: string,
+): boolean {
+  return (
+    Boolean(evidence.trim()) &&
+    rule.hasExpectedLabel(normalizeText(evidence)) &&
+    evidenceContainsValue(evidence, value)
+  );
 }
 
-function isConfirmedByUser(
+function isValueConfirmedByUser(
   rule: ProtectedFieldRule,
-  meta: Record<string, VisionMetaLike>,
+  value: string,
+  input: Record<string, unknown>,
 ): boolean {
-  return rule.keys.some((key) => meta[key]?.confirmedByUser === true);
+  const meta = visionMeta(input);
+  return rule.keys.some((key) => {
+    const entry = meta[key];
+    if (entry?.confirmedByUser !== true) return false;
+    const sourceValue = String(input[key] ?? entry.value ?? "");
+    return normalizeComparable(sourceValue) === normalizeComparable(value);
+  });
 }
 
 function sourceImageIds(
@@ -111,6 +127,26 @@ function hasVisionEvidence(
     }
   }
   return false;
+}
+
+function candidateValues(
+  rule: ProtectedFieldRule,
+  rawInput: Record<string, unknown>,
+  output: Record<string, string>,
+): string[] {
+  const values = [
+    String(output[rule.target] ?? ""),
+    ...rule.keys.map((key) => String(rawInput[key] ?? "")),
+  ]
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const normalized = normalizeComparable(value);
+    if (seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
 }
 
 const PROTECTED_FIELDS: ProtectedFieldRule[] = [
@@ -192,20 +228,16 @@ export function guardBurialOrderSourceFields(
   aliasedOutput: Record<string, string>,
 ): Record<string, string> {
   const output = { ...aliasedOutput };
-  const meta = visionMeta(rawInput);
 
   for (const rule of PROTECTED_FIELDS) {
-    const value = String(output[rule.target] ?? "").trim();
-    if (!value) continue;
-
-    const manuallyConfirmed = isConfirmedByUser(rule, meta);
     const legacyEvidence = String(rawInput[rule.legacyEvidenceKey] ?? "");
-    const supported =
-      manuallyConfirmed ||
-      supportsRuleEvidence(rule, legacyEvidence, value) ||
-      hasVisionEvidence(rule, value, rawInput);
-
-    if (!supported) output[rule.target] = "";
+    const supportedValue = candidateValues(rule, rawInput, output).find(
+      (value) =>
+        isValueConfirmedByUser(rule, value, rawInput) ||
+        supportsRuleEvidence(rule, legacyEvidence, value) ||
+        hasVisionEvidence(rule, value, rawInput),
+    );
+    output[rule.target] = supportedValue ?? "";
   }
 
   // "Quadra geral" descreve o tipo do sepultamento, não é número/nome de Rua.
